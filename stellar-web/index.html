@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stellar Web - Interactive Network Visualization</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            background: #000;
+        }
+
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        /* Controls Panel */
+        #controls-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(20, 20, 40, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            color: white;
+            min-width: 250px;
+            backdrop-filter: blur(10px);
+            transition: transform 0.4s ease, opacity 0.4s ease;
+        }
+
+        #controls-panel.hidden {
+            transform: translateX(-120%);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            outline: none;
+            border-radius: 2px;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #4CAF50;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: #4CAF50;
+            cursor: pointer;
+            border-radius: 50%;
+            border: none;
+        }
+
+        /* Visible light spectrum gradient (700nm red to 380nm violet) */
+        #color-hue {
+            background: linear-gradient(to right,
+                #8b00ff,
+                #0000ff,
+                #00ffff,
+                #00ff00,
+                #ffff00,
+                #ff7f00,
+                #ff0000
+            );
+            height: 8px;
+            transition: opacity 0.3s;
+        }
+
+        #color-hue.disabled {
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        #hue-value.disabled {
+            opacity: 0.5;
+        }
+
+        .value-display {
+            display: inline-block;
+            float: right;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+
+        /* Color Mode Buttons */
+        .color-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .color-btn {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.3s;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .color-btn.active {
+            background: #4CAF50;
+            transform: scale(1.05);
+        }
+
+        .color-btn:hover {
+            background: rgba(76, 175, 80, 0.5);
+        }
+
+        /* Stats Panel */
+        #stats-panel {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%) translateY(100%);
+            background: rgba(20, 20, 40, 0.85);
+            padding: 20px 40px;
+            border-radius: 10px 10px 0 0;
+            color: white;
+            min-width: 600px;
+            backdrop-filter: blur(10px);
+            transition: transform 0.4s ease, opacity 0.4s ease;
+            opacity: 0;
+        }
+
+        #stats-panel.visible {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        .toggle-btn {
+            position: absolute;
+            background: rgba(20, 20, 40, 0.9);
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            font-size: 20px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .toggle-btn:hover {
+            background: rgba(76, 175, 80, 0.9);
+            transform: scale(1.1);
+        }
+
+        #controls-toggle {
+            top: 20px;
+            left: 20px;
+            border-radius: 0 10px 10px 0;
+        }
+
+        #controls-toggle.hidden {
+            left: 0;
+        }
+
+        #stats-toggle {
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            border-radius: 10px 10px 0 0;
+        }
+
+        #stats-toggle.visible {
+            bottom: 0;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-top: 10px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+
+        h3 {
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+
+    <!-- Controls Toggle Button -->
+    <button id="controls-toggle" class="toggle-btn">◀</button>
+
+    <!-- Controls Panel -->
+    <div id="controls-panel">
+        <h3>Controls</h3>
+
+        <div class="control-group">
+            <label>
+                Particle Count
+                <span class="value-display" id="particle-count-value">200</span>
+            </label>
+            <input type="range" id="particle-count" min="10" max="300" value="200" step="10">
+        </div>
+
+        <div class="control-group">
+            <label>
+                Connectivity Radius
+                <span class="value-display" id="radius-value">20</span>
+            </label>
+            <input type="range" id="connectivity-radius" min="5" max="60" value="20" step="1">
+        </div>
+
+        <div class="control-group">
+            <label>
+                Particle Speed
+                <span class="value-display" id="speed-value">0.5</span>
+            </label>
+            <input type="range" id="particle-speed" min="0.1" max="2" value="0.5" step="0.1">
+        </div>
+
+        <div class="control-group">
+            <label>
+                Wavelength
+                <span class="value-display" id="hue-value">700 nm</span>
+            </label>
+            <input type="range" id="color-hue" min="380" max="700" value="700" step="1">
+        </div>
+
+        <div class="control-group">
+            <label>Color Mode</label>
+            <div class="color-buttons">
+                <button class="color-btn" data-color="hue">Hue</button>
+                <button class="color-btn active" data-color="rainbow">Rainbow</button>
+                <button class="color-btn" data-color="gbr">GBR</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Toggle Button -->
+    <button id="stats-toggle" class="toggle-btn">▲</button>
+
+    <!-- Stats Panel -->
+    <div id="stats-panel">
+        <h3>Network Statistics</h3>
+        <div class="stats-grid">
+            <div class="stat-item">
+                <div class="stat-label">Total Edges</div>
+                <div class="stat-value" id="stat-edges">0</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Avg Connections</div>
+                <div class="stat-value" id="stat-avg-connections">0.0</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Network Density</div>
+                <div class="stat-value" id="stat-density">0%</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Clustering Coeff.</div>
+                <div class="stat-value" id="stat-clustering">0.00</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Avg Connection Life</div>
+                <div class="stat-value" id="stat-lifespan">0.0s</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Collisions/Sec</div>
+                <div class="stat-value" id="stat-collisions">0</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Avg Velocity</div>
+                <div class="stat-value" id="stat-velocity">0.0</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Temperature</div>
+                <div class="stat-value" id="stat-temperature">Cold</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Web Stability</div>
+                <div class="stat-value" id="stat-stability">0%</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Three.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script src="stellar-web.js"></script>
+</body>
+</html>
