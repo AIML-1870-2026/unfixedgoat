@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Star Wars Boids Mini-Lab</title>
+  <link rel="stylesheet" href="css/style.css">
+  <!-- Star Wars style font -->
+  <link href="https://fonts.googleapis.com/css2?family=Pathway+Gothic+One&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- Intro Crawl Overlay -->
+  <div class="intro-overlay" id="intro-overlay">
+    <!-- "A long time ago..." text -->
+    <div class="intro-preamble" id="intro-preamble">
+      A long time ago in a galaxy far,<br>far away....
+    </div>
+
+    <!-- Perspective crawl container -->
+    <div class="crawl-container" id="crawl-container">
+      <!-- Stage: fixed viewport-sized element with 3D tilt -->
+      <div class="crawl-stage">
+        <!-- Content: scrolls inside the tilted stage -->
+        <div class="crawl-content" id="crawl-content">
+          <h1 class="crawl-title">STAR WARS</h1>
+          <h2 class="crawl-subtitle">BOID SIMULATOR</h2>
+
+          <p class="crawl-credits">Created by unfixedgoat</p>
+          <p class="crawl-credits">With the Help of Claude Code</p>
+
+          <div class="crawl-story">
+            <p>It is a period of digital warfare. Rebel
+            X-Wings, striking from hidden sectors of
+            the viewport, have won their first victory
+            against the evil Galactic Empire's
+            autonomous flocking algorithms.</p>
+
+            <p>During the battle, Rebel spies managed
+            to steal secret plans to the Empire's
+            ultimate weapon, the BOID ENGINE, a
+            simulated armada with enough artificial
+            intelligence to dominate an entire
+            star system.</p>
+
+            <p>Pursued by the Empire's sinister TIE
+            Fighter swarms, the Rebel fleet races
+            through the starfield, custodians of the
+            stolen parameters that can save their
+            people and restore freedom to the
+            galaxy....</p>
+          </div>
+        </div>
+      </div>
+      <!-- Top fade mask -->
+      <div class="crawl-fade-top"></div>
+    </div>
+
+    <!-- Skip button -->
+    <button class="skip-intro-btn" id="btn-skip-intro">Skip Intro</button>
+  </div>
+
+  <!-- Main -->
+  <div class="main-container">
+    <div class="canvas-container">
+      <canvas id="sim-canvas"></canvas>
+      <!-- Toggle UI button (always visible) -->
+      <button class="toggle-panel-btn" id="btn-toggle-panel" title="Toggle controls">&#9776;</button>
+      <!-- Mute button (always visible) -->
+      <button class="mute-btn" id="btn-mute" title="Toggle mute">&#128266;</button>
+    </div>
+
+    <div class="controls-panel" id="controls-panel">
+
+      <!-- Presets -->
+      <div class="section-header" data-section="presets">Presets <span class="toggle-icon">&#9660;</span></div>
+      <div class="section-content" id="section-presets">
+        <div class="preset-group">
+          <button class="preset-btn" id="preset-imperial">
+            <span class="preset-label">Imperial Formation</span>
+            <span class="preset-desc">Tight TIE formations, calm coexistence</span>
+          </button>
+          <button class="preset-btn" id="preset-rebel">
+            <span class="preset-label">Rebel Scramble</span>
+            <span class="preset-desc">Empire hunts scattered Rebels</span>
+          </button>
+          <button class="preset-btn" id="preset-yavin">
+            <span class="preset-label">Battle of Yavin</span>
+            <span class="preset-desc">Full-scale dogfight chaos</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Faction Interaction Mode -->
+      <div class="section-header" data-section="mode">Faction Mode <span class="toggle-icon">&#9660;</span></div>
+      <div class="section-content" id="section-mode">
+        <div class="mode-group">
+          <button class="mode-btn active" id="mode-coexist">Coexist</button>
+          <button class="mode-btn" id="mode-hunt">The Hunt</button>
+          <button class="mode-btn" id="mode-dogfight">All-Out War</button>
+        </div>
+        <div class="hunt-sub-toggle" id="hunt-sub-toggle" style="display:none;">
+          <button class="hunt-sub-btn active" id="hunt-empire">Empire Hunts</button>
+          <button class="hunt-sub-btn" id="hunt-rebels">Rebels Hunt</button>
+        </div>
+      </div>
+
+      <!-- TIE Flocking -->
+      <div class="section-header" data-section="tie-flock">Flocking — Imperial <span class="tie-accent">(TIE)</span> <span class="toggle-icon">&#9660;</span></div>
+      <div class="section-content" id="section-tie-flock">
+        <div class="slider-row">
+          <span class="slider-label">Separation <span class="tooltip" title="How strongly TIEs avoid crowding each other">(?)</span></span>
+          <input type="range" id="tie-separation" min="0" max="5" step="0.1" value="1.5">
+          <span class="slider-value" id="tie-separation-val">1.5</span>
+        </div>
+        <div class="slider-row">
+          <span class="slider-label">Alignment <span class="tooltip" title="How strongly TIEs match their neighbors' heading">(?)</span></span>
+          <input type="range" id="tie-alignment" min="0" max="5" step="0.1" value="1.5">
+          <span class="slider-value" id="tie-alignment-val">1.5</span>
+        </div>
+        <div class="slider-row">
+          <span class="slider-label">Cohesion <span class="tooltip" title="How strongly TIEs pull toward their group center">(?)</span></span>
+          <input type="range" id="tie-cohesion" min="0" max="5" step="0.1" value="1.5">
+          <span class="slider-value" id="tie-cohesion-val">1.5</span>
+        </div>
+        <div class="slider-row">
+          <span class="slider-label">Radius <span class="tooltip" title="How far each TIE sees to find neighbors (px)">(?)</span></span>
+          <input type="range" id="tie-radius" min="20" max="150" step="1" value="60">
+          <span class="slider-value" id="tie-radius-val">60</span>
+        </div>
+        <div class="slider-row">
+          <span class="slider-label">Max Speed <span class="tooltip" title="Top speed for TIE Fighters">(?)</span></span>
+          <input type="range" id="tie-speed" min="1" max="6" step="0.1" value="2">
+          <span class="slider-value" id="tie-speed-val">2</span>
+        </div>
+      </div>
+
+      <!-- Rebel Flocking -->
+      <div class="section-header" data-section="rebel-flock">Flocking — Rebel <span class="rebel-accent">(X-Wing)</span> <span class="toggle-icon">&#9660;</span></div>
+      <div class="section-content" id="section-rebel-flock">
+        <div class="slider-row">
+          <span class="slider-label">Separation <span class="tooltip" title="How strongly X-Wings avoid crowding each other">(?)</span></span>
+          <input type="range" id="rebel-separation" min="0" max="5" step="0.1" value="1.5">
+          <span class="slider-value" id="rebel-separation-val">1.5</span>
+        </div>
+        <div class="slider-row">
+          <span class="slider-label">Alignment <span class="tooltip" title="How strongly X-Wings match their neighbors' heading">(?)</span></span>
+          <input type="range" id="rebel-alignment" min="0" max="5" step="0.1" value="1.5">
+          <span class="slider-value" id="rebel-alignment-val">1.5</span>
+        </div>
+        <div class="slider-row">
+          <span class="slider-label">Cohesion <span class="tooltip" title="How strongly X-Wings pull toward their group center">(?)</span></span>
+          <input type="range" id="rebel-cohesion" min="0" max="5" step="0.1" value="1.5">
+          <span class="slider-value" id="rebel-cohesion-val">1.5</span>
+        </div>
+        <div class="slider-row">
+          <span class="slider-label">Radius <span class="tooltip" title="How far each X-Wing sees to find neighbors (px)">(?)</span></span>
+          <input type="range" id="rebel-radius" min="20" max="150" step="1" value="60">
+          <span class="slider-value" id="rebel-radius-val">60</span>
+        </div>
+        <div class="slider-row">
+          <span class="slider-label">Max Speed <span class="tooltip" title="Top speed for X-Wings">(?)</span></span>
+          <input type="range" id="rebel-speed" min="1" max="6" step="0.1" value="2">
+          <span class="slider-value" id="rebel-speed-val">2</span>
+        </div>
+      </div>
+
+      <!-- Engagement -->
+      <div class="section-header" data-section="engagement">Engagement <span class="toggle-icon">&#9660;</span></div>
+      <div class="section-content" id="engagement-section">
+        <div class="slider-row">
+          <span class="slider-label">Aggression <span class="tooltip" title="How strongly boids chase enemies">(?)</span></span>
+          <input type="range" id="eng-aggression" min="0" max="5" step="0.1" value="1">
+          <span class="slider-value" id="eng-aggression-val">1</span>
+        </div>
+        <div class="slider-row">
+          <span class="slider-label">Evasion <span class="tooltip" title="How strongly boids flee from close enemies">(?)</span></span>
+          <input type="range" id="eng-evasion" min="0" max="5" step="0.1" value="1">
+          <span class="slider-value" id="eng-evasion-val">1</span>
+        </div>
+        <div class="slider-row">
+          <span class="slider-label">Firing Range <span class="tooltip" title="Distance at which lasers activate (px)">(?)</span></span>
+          <input type="range" id="eng-firing-range" min="20" max="120" step="1" value="60">
+          <span class="slider-value" id="eng-firing-range-val">60</span>
+        </div>
+      </div>
+
+      <!-- General -->
+      <div class="section-header" data-section="general">General <span class="toggle-icon">&#9660;</span></div>
+      <div class="section-content" id="section-general">
+        <div class="slider-row">
+          <span class="slider-label">TIE Count <span class="tooltip" title="Number of TIE Fighters">(?)</span></span>
+          <input type="range" id="gen-tie-count" min="5" max="100" step="1" value="25">
+          <span class="slider-value" id="gen-tie-count-val">25</span>
+        </div>
+        <div class="slider-row">
+          <span class="slider-label">X-Wing Count <span class="tooltip" title="Number of X-Wings">(?)</span></span>
+          <input type="range" id="gen-xwing-count" min="5" max="100" step="1" value="25">
+          <span class="slider-value" id="gen-xwing-count-val">25</span>
+        </div>
+        <div class="slider-row">
+          <span class="slider-label">Trail Length <span class="tooltip" title="Engine trail length (0 = off)">(?)</span></span>
+          <input type="range" id="gen-trail-length" min="0" max="20" step="1" value="10">
+          <span class="slider-value" id="gen-trail-length-val">10</span>
+        </div>
+      </div>
+
+      <!-- Mouse Mode -->
+      <div class="section-header" data-section="mouse">Mouse Mode <span class="toggle-icon">&#9660;</span></div>
+      <div class="section-content" id="section-mouse">
+        <div class="toggle-group">
+          <button class="toggle-btn mouse-mode-btn active" id="mouse-attract">&#127919; Attract</button>
+          <button class="toggle-btn mouse-mode-btn" id="mouse-repel">&#128165; Repel</button>
+          <button class="toggle-btn mouse-mode-btn" id="mouse-spawn">&#10010; Spawn</button>
+        </div>
+      </div>
+
+      <!-- Simulation Controls -->
+      <div class="section-header" data-section="sim">Simulation <span class="toggle-icon">&#9660;</span></div>
+      <div class="section-content" id="section-sim">
+        <div class="sim-controls">
+          <button class="sim-btn" id="btn-pause">&#9208; Pause</button>
+          <button class="sim-btn" id="btn-reset">&#128260; Reset</button>
+          <button class="sim-btn" id="btn-randomize-obstacles">Randomize Obstacles</button>
+        </div>
+      </div>
+
+      <!-- Status readouts at bottom of panel -->
+      <div class="section-header" data-section="stats">Status <span class="toggle-icon">&#9660;</span></div>
+      <div class="section-content" id="section-stats">
+        <div class="status-readouts">
+          <div class="readout-row"><span class="label">FPS</span><span class="value" id="readout-fps">--</span></div>
+          <div class="readout-row"><span class="label tie-accent">TIEs</span><span class="value" id="readout-tie-count">--</span></div>
+          <div class="readout-row"><span class="label rebel-accent">X-Wings</span><span class="value" id="readout-xwing-count">--</span></div>
+          <div class="readout-row"><span class="label tie-accent">Avg Spd (TIE)</span><span class="value" id="readout-tie-speed">--</span></div>
+          <div class="readout-row"><span class="label rebel-accent">Avg Spd (X-Wing)</span><span class="value" id="readout-xwing-speed">--</span></div>
+          <div class="readout-row"><span class="label">Avg Neighbors</span><span class="value" id="readout-avg-neighbors">--</span></div>
+          <div class="readout-row"><span class="label">Engagements</span><span class="value" id="readout-engagements">--</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/config.js"></script>
+  <script src="js/boid.js"></script>
+  <script src="js/obstacles.js"></script>
+  <script src="js/flock.js"></script>
+  <script src="js/renderer.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/main.js"></script>
+
+  <!-- Collapsible sections + panel toggle -->
+  <script>
+    document.querySelectorAll('.section-header').forEach(header => {
+      header.addEventListener('click', () => {
+        const content = header.nextElementSibling;
+        header.classList.toggle('collapsed');
+        content.classList.toggle('collapsed');
+      });
+    });
+
+    document.getElementById('btn-toggle-panel').addEventListener('click', () => {
+      const panel = document.getElementById('controls-panel');
+      panel.classList.toggle('hidden');
+      // Trigger canvas resize after transition
+      setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+      }, 320);
+    });
+  </script>
+
+</body>
+</html>
