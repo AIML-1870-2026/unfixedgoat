@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>READABLE — CONTRAST DIAGNOSTIC TERMINAL</title>
+  <link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ph:        #33ff66;
+      --ph-dim:    #1e7a3a;
+      --ph-bright: #80ffaa;
+      --ph-glow:   rgba(51, 255, 102, 0.35);
+      --amber:     #ffaa00;
+      --amber-dim: #cc7700;
+      --red:       #ff3344;
+      --red-dim:   #cc1122;
+      --bg:        #04080505;
+      --bg-solid:  #050908;
+      --panel:     #060d08;
+      --border:    #1a3a22;
+      --border-hi: #2d6640;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg-solid);
+      color: var(--ph);
+      font-family: 'Share Tech Mono', monospace;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* CRT scanlines + vignette overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        repeating-linear-gradient(
+          to bottom,
+          transparent 0px,
+          transparent 2px,
+          rgba(0, 0, 0, 0.10) 2px,
+          rgba(0, 0, 0, 0.10) 4px
+        ),
+        radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.55) 100%);
+      pointer-events: none;
+      z-index: 9000;
+    }
+
+    /* Screen flicker on load */
+    @keyframes flicker {
+      0%   { opacity: 1; }
+      20%  { opacity: 0.94; }
+      40%  { opacity: 1; }
+      60%  { opacity: 0.97; }
+      80%  { opacity: 1; }
+      100% { opacity: 1; }
+    }
+    body { animation: flicker 0.2s ease-out 1; }
+
+    @keyframes blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+
+    @keyframes glow-pulse {
+      0%, 100% { text-shadow: 0 0 8px currentColor, 0 0 16px currentColor; }
+      50%       { text-shadow: 0 0 16px currentColor, 0 0 32px currentColor, 0 0 48px currentColor; }
+    }
+
+    @keyframes val-tick {
+      0%   { opacity: 0.3; transform: translateY(-4px); }
+      100% { opacity: 1;   transform: translateY(0); }
+    }
+
+    /* ── HEADER ──────────────────────────────────── */
+    #header {
+      flex-shrink: 0;
+      border-bottom: 1px solid var(--border-hi);
+      padding: 8px 20px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      background: var(--panel);
+      box-shadow: 0 2px 24px rgba(51,255,102,0.06);
+    }
+
+    #header h1 {
+      font-family: 'VT323', monospace;
+      font-size: 2.4rem;
+      letter-spacing: 6px;
+      color: var(--ph-bright);
+      text-shadow: 0 0 10px var(--ph-glow), 0 0 24px var(--ph-glow);
+      line-height: 1;
+    }
+
+    .cursor {
+      display: inline-block;
+      width: 14px;
+      height: 0.18em;
+      background: var(--ph-bright);
+      margin-left: 2px;
+      vertical-align: 0.12em;
+      animation: blink 1s step-start infinite;
+      box-shadow: 0 0 8px var(--ph-glow);
+    }
+
+    .header-sub {
+      font-size: 0.6rem;
+      letter-spacing: 3px;
+      color: var(--ph-dim);
+      margin-top: 2px;
+      text-transform: uppercase;
+    }
+
+    .header-status {
+      margin-left: auto;
+      font-size: 0.6rem;
+      letter-spacing: 2px;
+      color: var(--ph-dim);
+      text-align: right;
+    }
+
+    .status-dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--ph);
+      box-shadow: 0 0 6px var(--ph);
+      margin-right: 4px;
+      animation: blink 2s ease-in-out infinite;
+    }
+
+    /* ── MAIN ────────────────────────────────────── */
+    #main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── LEFT PANEL ──────────────────────────────── */
+    #left-panel {
+      width: 290px;
+      flex-shrink: 0;
+      border-right: 1px solid var(--border-hi);
+      background: var(--panel);
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 14px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    #left-panel::-webkit-scrollbar { width: 3px; }
+    #left-panel::-webkit-scrollbar-track { background: var(--bg-solid); }
+    #left-panel::-webkit-scrollbar-thumb { background: var(--border-hi); }
+
+    .section-label {
+      font-size: 0.58rem;
+      letter-spacing: 4px;
+      color: var(--ph-dim);
+      text-transform: uppercase;
+      padding-bottom: 5px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 8px;
+    }
+
+    /* Color sections */
+    .color-section { display: flex; flex-direction: column; gap: 5px; }
+
+    .color-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 7px;
+    }
+
+    .swatch {
+      width: 40px;
+      height: 40px;
+      border: 1px solid var(--border-hi);
+      flex-shrink: 0;
+      box-shadow: 0 0 8px rgba(0,0,0,0.5);
+    }
+
+    .hex-display {
+      font-family: 'VT323', monospace;
+      font-size: 1.5rem;
+      letter-spacing: 2px;
+      color: var(--ph-bright);
+      text-shadow: 0 0 8px var(--ph-glow);
+    }
+
+    .channel-row {
+      display: grid;
+      grid-template-columns: 14px 1fr 50px;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .channel-label {
+      font-size: 0.65rem;
+      color: var(--ph-dim);
+      font-family: 'VT323', monospace;
+      font-size: 0.95rem;
+    }
+
+    /* Sliders */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 2px;
+      background: var(--border);
+      outline: none;
+      cursor: pointer;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 11px;
+      height: 11px;
+      background: var(--ph);
+      box-shadow: 0 0 6px var(--ph-glow);
+      cursor: pointer;
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 11px;
+      height: 11px;
+      border: none;
+      background: var(--ph);
+      box-shadow: 0 0 6px var(--ph-glow);
+      cursor: pointer;
+    }
+
+    /* Number inputs */
+    input[type="number"] {
+      background: var(--bg-solid);
+      border: 1px solid var(--border);
+      color: var(--ph);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.72rem;
+      padding: 3px 4px;
+      width: 100%;
+      text-align: right;
+      outline: none;
+      -moz-appearance: textfield;
+    }
+    input[type="number"]:focus {
+      border-color: var(--ph);
+      box-shadow: 0 0 4px var(--ph-glow);
+    }
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+    /* Colorblind toggles */
+    .cb-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+    }
+    .cb-grid .cb-btn:last-child:nth-child(odd) { grid-column: 1 / -1; }
+
+    .cb-btn {
+      background: var(--bg-solid);
+      border: 1px solid var(--border);
+      color: var(--ph-dim);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.58rem;
+      letter-spacing: 1px;
+      padding: 5px 4px;
+      cursor: pointer;
+      text-align: center;
+      text-transform: uppercase;
+      transition: all 0.08s;
+    }
+    .cb-btn:hover {
+      border-color: var(--ph);
+      color: var(--ph);
+    }
+    .cb-btn.active {
+      background: rgba(51, 255, 102, 0.10);
+      border-color: var(--ph);
+      color: var(--ph-bright);
+      box-shadow: 0 0 5px var(--ph-glow) inset, 0 0 5px var(--ph-glow);
+    }
+
+    /* ── RIGHT AREA ──────────────────────────────── */
+    #right-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Preview */
+    #preview {
+      flex: 1;
+      padding: 36px 44px;
+      overflow: hidden;
+      display: flex;
+      align-items: flex-start;
+      border-bottom: 1px solid var(--border-hi);
+    }
+
+    #preview-text {
+      line-height: 1.6;
+      width: 100%;
+      transition: font-size 0.05s;
+    }
+
+    /* Font size bar */
+    #font-size-bar {
+      flex-shrink: 0;
+      padding: 9px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--panel);
+    }
+
+    #font-size-bar .bar-label {
+      font-size: 0.57rem;
+      letter-spacing: 3px;
+      color: var(--ph-dim);
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    #font-size-bar input[type="range"] { flex: 1; }
+
+    #font-size-bar input[type="number"] { width: 50px; }
+
+    #font-size-bar .px-unit {
+      font-size: 0.57rem;
+      color: var(--ph-dim);
+      letter-spacing: 1px;
+    }
+
+    /* ── DATA SECTION ────────────────────────────── */
+    #data-section {
+      flex-shrink: 0;
+      display: flex;
+      gap: 0;
+      background: var(--panel);
+      border-top: 1px solid var(--border-hi);
+      overflow: hidden;
+    }
+
+    .data-block {
+      padding: 12px 16px;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+    }
+    .data-block:last-child { border-right: none; }
+
+    .data-label {
+      font-size: 0.52rem;
+      letter-spacing: 4px;
+      color: var(--ph-dim);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    /* Contrast ratio */
+    #contrast-block { min-width: 155px; }
+
+    #contrast-ratio {
+      font-family: 'VT323', monospace;
+      font-size: 3.0rem;
+      line-height: 1;
+      animation: glow-pulse 2.5s ease-in-out infinite;
+    }
+
+    #contrast-level {
+      font-size: 0.58rem;
+      letter-spacing: 3px;
+      margin-top: 3px;
+    }
+
+    .level-aaa     { color: var(--ph-bright); }
+    .level-aa      { color: var(--ph); }
+    .level-marginal{ color: var(--amber); }
+    .level-fail    { color: var(--red); }
+
+    /* WCAG badges */
+    #badges-block { min-width: 235px; }
+
+    .badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.59rem;
+      letter-spacing: 1px;
+      margin-bottom: 3px;
+    }
+    .badge:last-child { margin-bottom: 0; }
+
+    .badge-name {
+      color: var(--ph-dim);
+      min-width: 148px;
+    }
+
+    .badge-status {
+      font-family: 'VT323', monospace;
+      font-size: 0.9rem;
+      letter-spacing: 2px;
+      padding: 1px 7px;
+      border: 1px solid;
+      min-width: 44px;
+      text-align: center;
+    }
+    .badge-status.pass {
+      color: var(--ph-bright);
+      border-color: var(--ph);
+      background: rgba(51,255,102,0.08);
+      text-shadow: 0 0 6px var(--ph-glow);
+    }
+    .badge-status.fail {
+      color: var(--red);
+      border-color: var(--red-dim);
+      background: rgba(255,51,68,0.08);
+    }
+
+    /* Luminance */
+    #luminance-block { min-width: 155px; gap: 5px; }
+
+    .lum-row { display: flex; flex-direction: column; }
+
+    .lum-sub-label {
+      font-size: 0.5rem;
+      letter-spacing: 2px;
+      color: var(--ph-dim);
+      text-transform: uppercase;
+      margin-bottom: 1px;
+    }
+
+    .lum-value {
+      font-family: 'VT323', monospace;
+      font-size: 1.25rem;
+      color: var(--ph);
+    }
+
+    /* Presets */
+    #presets-block { flex: 1; }
+
+    .presets-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 4px;
+      flex: 1;
+    }
+
+    .preset-btn {
+      background: var(--bg-solid);
+      border: 1px solid var(--border);
+      color: var(--ph-dim);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.56rem;
+      letter-spacing: 1px;
+      padding: 5px 7px;
+      cursor: pointer;
+      text-align: left;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.08s;
+    }
+    .preset-btn:hover {
+      border-color: var(--ph);
+      color: var(--ph);
+      background: rgba(51,255,102,0.04);
+    }
+
+    .preset-swatch {
+      width: 14px;
+      height: 14px;
+      border: 1px solid rgba(255,255,255,0.18);
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── HEADER ── -->
+  <header id="header">
+    <div>
+      <h1>READABLE<span class="cursor"></span></h1>
+      <div class="header-sub">contrast diagnostic terminal &nbsp;// wcag 2.1</div>
+    </div>
+    <div class="header-status">
+      <span class="status-dot"></span>SYS_READY<br>
+      CONTRAST ENGINE ONLINE
+    </div>
+  </header>
+
+  <!-- ── MAIN ── -->
+  <div id="main">
+
+    <!-- ── LEFT PANEL ── -->
+    <div id="left-panel">
+
+      <!-- Background Color -->
+      <div class="color-section">
+        <div class="section-label">background</div>
+        <div class="color-header">
+          <div class="swatch" id="bg-swatch"></div>
+          <div class="hex-display" id="bg-hex">#FFFFFF</div>
+        </div>
+        <div class="channel-row">
+          <span class="channel-label">R</span>
+          <input type="range" id="bg-r-slider" min="0" max="255" value="255">
+          <input type="number" id="bg-r-input" min="0" max="255" value="255">
+        </div>
+        <div class="channel-row">
+          <span class="channel-label">G</span>
+          <input type="range" id="bg-g-slider" min="0" max="255" value="255">
+          <input type="number" id="bg-g-input" min="0" max="255" value="255">
+        </div>
+        <div class="channel-row">
+          <span class="channel-label">B</span>
+          <input type="range" id="bg-b-slider" min="0" max="255" value="255">
+          <input type="number" id="bg-b-input" min="0" max="255" value="255">
+        </div>
+      </div>
+
+      <!-- Text Color -->
+      <div class="color-section">
+        <div class="section-label">text color</div>
+        <div class="color-header">
+          <div class="swatch" id="fg-swatch"></div>
+          <div class="hex-display" id="fg-hex">#000000</div>
+        </div>
+        <div class="channel-row">
+          <span class="channel-label">R</span>
+          <input type="range" id="fg-r-slider" min="0" max="255" value="0">
+          <input type="number" id="fg-r-input" min="0" max="255" value="0">
+        </div>
+        <div class="channel-row">
+          <span class="channel-label">G</span>
+          <input type="range" id="fg-g-slider" min="0" max="255" value="0">
+          <input type="number" id="fg-g-input" min="0" max="255" value="0">
+        </div>
+        <div class="channel-row">
+          <span class="channel-label">B</span>
+          <input type="range" id="fg-b-slider" min="0" max="255" value="0">
+          <input type="number" id="fg-b-input" min="0" max="255" value="0">
+        </div>
+      </div>
+
+      <!-- Colorblind Simulation -->
+      <div>
+        <div class="section-label">colorblind simulation</div>
+        <div class="cb-grid">
+          <button class="cb-btn active" data-mode="normal">Normal</button>
+          <button class="cb-btn" data-mode="protanopia">Protanopia</button>
+          <button class="cb-btn" data-mode="deuteranopia">Deuteranopia</button>
+          <button class="cb-btn" data-mode="tritanopia">Tritanopia</button>
+          <button class="cb-btn" data-mode="monochromacy">Monochromacy</button>
+        </div>
+      </div>
+
+    </div><!-- /left-panel -->
+
+    <!-- ── RIGHT AREA ── -->
+    <div id="right-area">
+
+      <!-- Preview -->
+      <div id="preview">
+        <p id="preview-text">
+          This tool doesn't have feelings about your color choices — but WCAG 2.1 certainly does.
+          Those sliders on the left aren't decorative relics of a more naive design era; they determine
+          whether your future users read with ease or squint into the chromatic void. A ratio of 4.5:1
+          is the line between "accessible" and "allegedly readable." Anything below 3.0 is a crime in
+          fourteen states and strongly discouraged everywhere else. Choose wisely — or choose white on
+          white and achieve true aesthetic purity: zero contrast, zero content, zero readers.
+        </p>
+      </div>
+
+      <!-- Font Size Bar -->
+      <div id="font-size-bar">
+        <span class="bar-label">font size</span>
+        <input type="range" id="size-slider" min="8" max="96" value="18">
+        <input type="number" id="size-input" min="8" max="96" value="18">
+        <span class="px-unit">px</span>
+      </div>
+
+      <!-- Data Section -->
+      <div id="data-section">
+
+        <!-- Contrast Ratio -->
+        <div class="data-block" id="contrast-block">
+          <div class="data-label">contrast ratio</div>
+          <div id="contrast-ratio" class="level-aaa">21.00:1</div>
+          <div id="contrast-level" class="level-aaa">●● AAA PASS</div>
+        </div>
+
+        <!-- WCAG Badges -->
+        <div class="data-block" id="badges-block">
+          <div class="data-label">wcag compliance</div>
+          <div class="badge">
+            <span class="badge-name">AA  Normal  ≥ 4.5:1</span>
+            <span class="badge-status pass" id="badge-aa-normal">PASS</span>
+          </div>
+          <div class="badge">
+            <span class="badge-name">AA  Large   ≥ 3.0:1</span>
+            <span class="badge-status pass" id="badge-aa-large">PASS</span>
+          </div>
+          <div class="badge">
+            <span class="badge-name">AAA Normal  ≥ 7.0:1</span>
+            <span class="badge-status pass" id="badge-aaa-normal">PASS</span>
+          </div>
+          <div class="badge">
+            <span class="badge-name">AAA Large   ≥ 4.5:1</span>
+            <span class="badge-status pass" id="badge-aaa-large">PASS</span>
+          </div>
+        </div>
+
+        <!-- Luminance -->
+        <div class="data-block" id="luminance-block">
+          <div class="data-label">rel. luminance</div>
+          <div class="lum-row">
+            <span class="lum-sub-label">background</span>
+            <span class="lum-value" id="lum-bg">1.0000</span>
+          </div>
+          <div class="lum-row">
+            <span class="lum-sub-label">text color</span>
+            <span class="lum-value" id="lum-fg">0.0000</span>
+          </div>
+        </div>
+
+        <!-- Presets -->
+        <div class="data-block" id="presets-block">
+          <div class="data-label">presets</div>
+          <div class="presets-grid">
+            <button class="preset-btn" data-bg="255,255,255" data-fg="0,0,0">
+              <span class="preset-swatch" style="background:#fff;border-color:#999;"></span>
+              Black/White
+            </button>
+            <button class="preset-btn" data-bg="26,26,46" data-fg="230,230,240">
+              <span class="preset-swatch" style="background:#1a1a2e;"></span>
+              Dark Mode
+            </button>
+            <button class="preset-btn" data-bg="253,246,227" data-fg="101,123,131">
+              <span class="preset-swatch" style="background:#fdf6e3;"></span>
+              Solarized
+            </button>
+            <button class="preset-btn" data-bg="255,255,153" data-fg="255,204,0">
+              <span class="preset-swatch" style="background:#ffff99;border-color:#ccc;"></span>
+              Low Contrast
+            </button>
+            <button class="preset-btn" data-bg="0,0,0" data-fg="255,0,0">
+              <span class="preset-swatch" style="background:#000;"></span>
+              Red Alert
+            </button>
+            <button class="preset-btn" data-bg="0,105,148" data-fg="255,255,255">
+              <span class="preset-swatch" style="background:#006994;"></span>
+              Ocean
+            </button>
+          </div>
+        </div>
+
+      </div><!-- /data-section -->
+    </div><!-- /right-area -->
+  </div><!-- /main -->
+
+  <script>
+    // ── State ──────────────────────────────────────
+    let state = {
+      bgR: 255, bgG: 255, bgB: 255,
+      fgR: 0,   fgG: 0,   fgB: 0,
+      fontSize: 18,
+      cbMode: 'normal'
+    };
+
+    // ── Colorblind matrices ────────────────────────
+    const cbMatrices = {
+      normal:       [[1,0,0],[0,1,0],[0,0,1]],
+      protanopia:   [[0.567,0.433,0],[0.558,0.442,0],[0,0.242,0.758]],
+      deuteranopia: [[0.625,0.375,0],[0.7,0.3,0],[0,0.3,0.7]],
+      tritanopia:   [[0.95,0.05,0],[0,0.433,0.567],[0,0.475,0.525]],
+      monochromacy: [[0.299,0.587,0.114],[0.299,0.587,0.114],[0.299,0.587,0.114]]
+    };
+
+    function applyColorblind(r, g, b, mode) {
+      const m = cbMatrices[mode];
+      return [
+        Math.round(Math.min(255, m[0][0]*r + m[0][1]*g + m[0][2]*b)),
+        Math.round(Math.min(255, m[1][0]*r + m[1][1]*g + m[1][2]*b)),
+        Math.round(Math.min(255, m[2][0]*r + m[2][1]*g + m[2][2]*b))
+      ];
+    }
+
+    function sRGBtoLinear(c) {
+      const v = c / 255;
+      return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    }
+
+    function relativeLuminance(r, g, b) {
+      return 0.2126 * sRGBtoLinear(r)
+           + 0.7152 * sRGBtoLinear(g)
+           + 0.0722 * sRGBtoLinear(b);
+    }
+
+    function contrastRatio(l1, l2) {
+      const lighter = Math.max(l1, l2);
+      const darker  = Math.min(l1, l2);
+      return (lighter + 0.05) / (darker + 0.05);
+    }
+
+    function toHex(r, g, b) {
+      return '#' + [r, g, b]
+        .map(v => v.toString(16).padStart(2, '0').toUpperCase())
+        .join('');
+    }
+
+    // ── Render ─────────────────────────────────────
+    function render() {
+      const [sbgR, sbgG, sbgB] = applyColorblind(state.bgR, state.bgG, state.bgB, state.cbMode);
+      const [sfgR, sfgG, sfgB] = applyColorblind(state.fgR, state.fgG, state.fgB, state.cbMode);
+
+      // 1. BG swatch + hex
+      document.getElementById('bg-swatch').style.background = `rgb(${state.bgR},${state.bgG},${state.bgB})`;
+      document.getElementById('bg-hex').textContent = toHex(state.bgR, state.bgG, state.bgB);
+
+      // 2. FG swatch + hex
+      document.getElementById('fg-swatch').style.background = `rgb(${state.fgR},${state.fgG},${state.fgB})`;
+      document.getElementById('fg-hex').textContent = toHex(state.fgR, state.fgG, state.fgB);
+
+      // 3. Preview bg (simulated)
+      document.getElementById('preview').style.backgroundColor = `rgb(${sbgR},${sbgG},${sbgB})`;
+
+      // 4. Preview text color + font size (simulated)
+      const pt = document.getElementById('preview-text');
+      pt.style.color    = `rgb(${sfgR},${sfgG},${sfgB})`;
+      pt.style.fontSize = state.fontSize + 'px';
+
+      // luminance (simulated colors per spec)
+      const lumBg = relativeLuminance(sbgR, sbgG, sbgB);
+      const lumFg = relativeLuminance(sfgR, sfgG, sfgB);
+      const ratio = contrastRatio(lumBg, lumFg);
+
+      // 5. Contrast ratio + color coding
+      const crEl = document.getElementById('contrast-ratio');
+      const lvEl = document.getElementById('contrast-level');
+      crEl.textContent = ratio.toFixed(2) + ':1';
+
+      const [lvClass, lvText] =
+        ratio >= 7.0 ? ['level-aaa', '●● AAA  PASS'] :
+        ratio >= 4.5 ? ['level-aa',  '●● AA   PASS'] :
+        ratio >= 3.0 ? ['level-marginal', '◐  MARGINAL'] :
+                       ['level-fail',     '○  FAIL    '];
+
+      crEl.className = lvClass;
+      lvEl.className = lvClass;
+      lvEl.textContent = lvText;
+
+      // 6. WCAG badges
+      function setBadge(id, pass) {
+        const el = document.getElementById(id);
+        el.textContent = pass ? 'PASS' : 'FAIL';
+        el.className = 'badge-status ' + (pass ? 'pass' : 'fail');
+      }
+      setBadge('badge-aa-normal',  ratio >= 4.5);
+      setBadge('badge-aa-large',   ratio >= 3.0);
+      setBadge('badge-aaa-normal', ratio >= 7.0);
+      setBadge('badge-aaa-large',  ratio >= 4.5);
+
+      // 7. Luminance values
+      document.getElementById('lum-bg').textContent = lumBg.toFixed(4);
+      document.getElementById('lum-fg').textContent = lumFg.toFixed(4);
+    }
+
+    // ── Event wiring ───────────────────────────────
+    function wireChannel(sliderId, inputId, key) {
+      const slider = document.getElementById(sliderId);
+      const input  = document.getElementById(inputId);
+
+      slider.addEventListener('input', () => {
+        state[key] = parseInt(slider.value);
+        input.value = slider.value;
+        render();
+      });
+
+      input.addEventListener('input', () => {
+        let v = parseInt(input.value) || 0;
+        v = Math.max(0, Math.min(255, v));
+        input.value = v;
+        state[key] = v;
+        slider.value = v;
+        render();
+      });
+    }
+
+    wireChannel('bg-r-slider', 'bg-r-input', 'bgR');
+    wireChannel('bg-g-slider', 'bg-g-input', 'bgG');
+    wireChannel('bg-b-slider', 'bg-b-input', 'bgB');
+    wireChannel('fg-r-slider', 'fg-r-input', 'fgR');
+    wireChannel('fg-g-slider', 'fg-g-input', 'fgG');
+    wireChannel('fg-b-slider', 'fg-b-input', 'fgB');
+
+    // Font size
+    const sizeSlider = document.getElementById('size-slider');
+    const sizeInput  = document.getElementById('size-input');
+
+    sizeSlider.addEventListener('input', () => {
+      state.fontSize = parseInt(sizeSlider.value);
+      sizeInput.value = sizeSlider.value;
+      render();
+    });
+    sizeInput.addEventListener('input', () => {
+      let v = parseInt(sizeInput.value) || 8;
+      v = Math.max(8, Math.min(96, v));
+      sizeInput.value = v;
+      state.fontSize = v;
+      sizeSlider.value = v;
+      render();
+    });
+
+    // Colorblind toggles
+    document.querySelectorAll('.cb-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.cb-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.cbMode = btn.dataset.mode;
+        render();
+      });
+    });
+
+    // Presets
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const [br, bg, bb] = btn.dataset.bg.split(',').map(Number);
+        const [fr, fg, fb] = btn.dataset.fg.split(',').map(Number);
+
+        state.bgR = br; state.bgG = bg; state.bgB = bb;
+        state.fgR = fr; state.fgG = fg; state.fgB = fb;
+
+        document.getElementById('bg-r-slider').value = br;
+        document.getElementById('bg-r-input').value  = br;
+        document.getElementById('bg-g-slider').value = bg;
+        document.getElementById('bg-g-input').value  = bg;
+        document.getElementById('bg-b-slider').value = bb;
+        document.getElementById('bg-b-input').value  = bb;
+        document.getElementById('fg-r-slider').value = fr;
+        document.getElementById('fg-r-input').value  = fr;
+        document.getElementById('fg-g-slider').value = fg;
+        document.getElementById('fg-g-input').value  = fg;
+        document.getElementById('fg-b-slider').value = fb;
+        document.getElementById('fg-b-input').value  = fb;
+
+        render();
+      });
+    });
+
+    // ── Init ───────────────────────────────────────
+    render();
+  </script>
+</body>
+</html>
