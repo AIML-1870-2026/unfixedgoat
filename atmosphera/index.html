@@ -371,10 +371,9 @@ canvas#sky-canvas {
 
 <div class="forecast-tooltip" id="forecast-tooltip"></div>
 
-<script src="config.js"></script>
 <script>
 /* ======== State ======== */
-let API_KEY = "";
+let API_KEY = "e3522c1b2abdb141bb838ddc6b6983b7";
 let unit = "imperial";
 let currentData = null;
 let forecastData = null;
@@ -1055,14 +1054,11 @@ function renderForecast(fc) {
   });
 }
 
-/* ======== Auto-launch if OWM_KEY was loaded from config.js ======== */
+/* ======== Auto-launch ======== */
 renderSky(null);
-if (typeof OWM_KEY !== 'undefined' && OWM_KEY) {
-  API_KEY = OWM_KEY;
-  document.getElementById('setup-screen').style.display = 'none';
-  document.getElementById('header').classList.add('visible');
-  fetchWeather('New York');
-}
+document.getElementById('setup-screen').style.display = 'none';
+document.getElementById('header').classList.add('visible');
+fetchWeather('New York');
 </script>
 </body>
 </html>
