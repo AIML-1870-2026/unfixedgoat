@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Should I Golf Today?</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#1a2e1a;--bg2:#223322;--bg3:#2a3f2a;--accent:#4caf50;
+  --gold:#ffd700;--text:#e8f5e9;--text2:#a5d6a7;--red:#ef5350;
+  --green:#66bb6a;--blue:#42a5f5;--white:#fff;
+}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+h1{text-align:center;padding:18px 0 6px;font-size:1.8rem;letter-spacing:1px}
+h1 span{color:var(--gold)}
+.subtitle{text-align:center;color:var(--text2);font-size:.95rem;margin-bottom:12px}
+
+.main{display:flex;gap:16px;padding:0 16px 16px;max-width:1300px;margin:0 auto}
+.left{flex:0 0 340px;display:flex;flex-direction:column;gap:10px}
+.right{flex:1;display:flex;flex-direction:column;gap:10px;min-width:0}
+
+.card{background:var(--bg2);border-radius:10px;padding:14px 16px;border:1px solid #334433}
+.card h2{font-size:1rem;margin-bottom:10px;color:var(--gold);cursor:pointer;user-select:none}
+.card h2::before{content:'';display:inline-block;width:0;height:0;border-left:6px solid var(--gold);border-top:4px solid transparent;border-bottom:4px solid transparent;margin-right:8px;transition:transform .2s}
+.card h2.open::before{transform:rotate(90deg)}
+
+.input-group{margin-bottom:12px}
+.input-group label{display:flex;justify-content:space-between;font-size:.85rem;margin-bottom:4px;color:var(--text2)}
+.input-group label .val{color:var(--white);font-weight:600}
+input[type=range]{-webkit-appearance:none;width:100%;height:6px;border-radius:3px;background:#3a5a3a;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--accent);cursor:pointer;border:2px solid var(--white)}
+input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--accent);cursor:pointer;border:2px solid var(--white)}
+
+.toggle-row{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.toggle-row label{font-size:.85rem;color:var(--text2)}
+.toggle{position:relative;width:52px;height:26px;cursor:pointer;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.toggle .slider{position:absolute;inset:0;background:#3a5a3a;border-radius:13px;transition:.3s}
+.toggle .slider::before{content:'';position:absolute;width:20px;height:20px;left:3px;top:3px;background:var(--white);border-radius:50%;transition:.3s}
+.toggle input:checked+.slider{background:var(--accent)}
+.toggle input:checked+.slider::before{transform:translateX(26px)}
+
+.course-btns{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px}
+.course-btns button{flex:1;min-width:0;padding:6px 2px;font-size:.7rem;border:1px solid #445544;background:var(--bg3);color:var(--text2);border-radius:6px;cursor:pointer;transition:.2s;white-space:nowrap}
+.course-btns button.active{background:var(--accent);color:var(--white);border-color:var(--accent);font-weight:600}
+.course-btns button:hover{border-color:var(--accent)}
+
+.output-bar{background:var(--bg2);border-radius:10px;padding:14px 16px;border:1px solid #334433;text-align:center}
+.bar-wrap{height:28px;background:#1a2e1a;border-radius:14px;overflow:hidden;margin:8px 0}
+.bar-fill{height:100%;border-radius:14px;transition:width .4s,background .4s;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;font-weight:700;font-size:.85rem;color:var(--bg);min-width:40px}
+.decision{font-size:1.4rem;font-weight:700;margin-top:4px;transition:color .3s}
+.decision.yes{color:var(--green)}
+.decision.no{color:var(--red)}
+
+#heatmap{width:100%;border-radius:8px;cursor:crosshair}
+.axis-sel{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+.axis-sel label{font-size:.8rem;color:var(--text2)}
+.axis-sel select{background:var(--bg3);color:var(--text);border:1px solid #445544;border-radius:4px;padding:3px 6px;font-size:.8rem}
+
+.math{font-family:'Courier New',monospace;font-size:.78rem;line-height:1.7;color:var(--text2);max-height:0;overflow:hidden;transition:max-height .3s}
+.math.open{max-height:600px}
+.math .term{display:flex;justify-content:space-between}
+.math .pos{color:var(--green)}
+.math .neg{color:var(--red)}
+
+.train-panel{max-height:0;overflow:hidden;transition:max-height .3s}
+.train-panel.open{max-height:800px}
+.train-btns{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.train-btns button{padding:6px 12px;border:none;border-radius:6px;cursor:pointer;font-size:.8rem;font-weight:600;transition:.2s}
+.btn-yes{background:var(--green);color:#1a2e1a}
+.btn-no{background:var(--red);color:var(--white)}
+.btn-step{background:var(--blue);color:var(--white)}
+.btn-reset{background:#666;color:var(--white)}
+.train-btns button:hover{opacity:.85;transform:scale(1.03)}
+.train-info{font-size:.8rem;color:var(--text2);line-height:1.6}
+.train-info span{color:var(--white);font-weight:600}
+.lr-row{display:flex;align-items:center;gap:8px;margin-top:6px}
+.lr-row label{font-size:.8rem;color:var(--text2);white-space:nowrap}
+.lr-row input{width:120px}
+
+.label-mode-indicator{font-size:.75rem;padding:2px 8px;border-radius:4px;margin-left:8px}
+.label-mode-indicator.yes-mode{background:var(--green);color:#1a2e1a}
+.label-mode-indicator.no-mode{background:var(--red);color:var(--white)}
+
+@media(max-width:768px){
+  .main{flex-direction:column}
+  .left{flex:none;width:100%}
+}
+</style>
+</head>
+<body>
+
+<h1><span>Should I Golf Today?</span> &#9971;</h1>
+<p class="subtitle">A single-neuron decision tool</p>
+
+<div class="main">
+  <div class="left">
+    <div class="card">
+      <div class="input-group">
+        <label>&#127777;&#65039; Temperature <span class="val" id="tempVal">70&#176;F</span></label>
+        <input type="range" id="temp" min="30" max="110" value="70" step="1">
+      </div>
+      <div class="input-group">
+        <label>&#128167; Humidity <span class="val" id="humVal">40%</span></label>
+        <input type="range" id="humidity" min="0" max="100" value="40" step="1">
+      </div>
+      <div class="input-group">
+        <label>&#128176; Greens Fees <span class="val" id="feeVal">$100</span></label>
+        <input type="range" id="fee" min="50" max="350" value="100" step="5">
+      </div>
+      <div class="input-group">
+        <label>&#9971; Course Quality</label>
+        <div class="course-btns" id="courseBtns">
+          <button data-val="0" class="active">Municipal</button>
+          <button data-val="0.25">Golf Club</button>
+          <button data-val="0.5">Country Club</button>
+          <button data-val="0.75">TPC</button>
+          <button data-val="1">Tournament</button>
+        </div>
+      </div>
+      <div class="toggle-row">
+        <label>&#128694; Walking</label>
+        <label class="toggle"><input type="checkbox" id="riding"><span class="slider"></span></label>
+        <label>&#127950; Riding</label>
+      </div>
+      <div class="input-group">
+        <label>&#9889; Energy Level <span class="val" id="energyVal">0.70</span></label>
+        <input type="range" id="energy" min="0" max="1" value="0.7" step="0.01">
+      </div>
+      <hr style="border-color:#334433;margin:6px 0">
+      <div class="input-group">
+        <label>&#128293; Golf Addiction Level <span class="val" id="biasVal">0.0</span></label>
+        <input type="range" id="bias" min="-3" max="3" value="0" step="0.1">
+      </div>
+    </div>
+
+    <div class="output-bar">
+      <div style="font-size:.9rem;color:var(--text2)">Neuron Output</div>
+      <div class="bar-wrap"><div class="bar-fill" id="barFill">73%</div></div>
+      <div class="decision yes" id="decisionText">YES! Hit the links! &#127948;&#65039;</div>
+    </div>
+
+    <div class="card">
+      <h2 class="open" onclick="togglePanel(this,'mathBody')">Math Breakdown</h2>
+      <div class="math open" id="mathBody"></div>
+    </div>
+  </div>
+
+  <div class="right">
+    <div class="card">
+      <div class="axis-sel">
+        <label>X-axis:</label>
+        <select id="axisX"></select>
+        <label style="margin-left:8px">Y-axis:</label>
+        <select id="axisY"></select>
+      </div>
+      <canvas id="heatmap"></canvas>
+    </div>
+
+    <div class="card">
+      <h2 onclick="togglePanel(this,'trainPanel')">Training Mode</h2>
+      <div class="train-panel" id="trainPanel">
+        <div class="train-btns">
+          <button class="btn-yes" id="btnYes" onclick="setLabelMode('yes')">&#9989; Yes, I'd Golf</button>
+          <button class="btn-no" id="btnNo" onclick="setLabelMode('no')">&#10060; No, Skip It</button>
+          <span id="labelIndicator"></span>
+          <span style="flex-grow:1"></span>
+          <button class="btn-step" onclick="trainStep(1)">Step</button>
+          <button class="btn-step" onclick="trainStep(10)">Train &times;10</button>
+          <button class="btn-reset" onclick="resetTraining()">Reset</button>
+        </div>
+        <div class="lr-row">
+          <label>Learning Rate: <span id="lrVal">0.10</span></label>
+          <input type="range" id="lr" min="0.01" max="1" value="0.1" step="0.01">
+        </div>
+        <div class="train-info" id="trainInfo">
+          Click the heatmap to add training points. Select Yes/No label first.<br>
+          Steps: <span id="stepCount">0</span> &nbsp; Accuracy: <span id="accuracy">-</span> &nbsp; Loss: <span id="lossVal">-</span>
+        </div>
+        <div class="train-info" id="weightsDisplay" style="margin-top:6px"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const defaults = {w:[2.0, 1.0, -2.0, 2.0, 0.5, 2.5], bias:0};
+let W = [...defaults.w];
+let B = defaults.bias;
+let trainPoints = [];
+let labelMode = null;
+let steps = 0;
+let courseVal = 0;
+
+const inputKeys = ['temp','humidity','fee','course','riding','energy'];
+const inputLabels = ['Temperature (\u00b0F)','Humidity (%)','Greens Fees ($)','Course Quality','Walk/Ride','Energy Level'];
+const inputRanges = [[30,110],[0,100],[50,350],[0,1],[0,1],[0,1]];
+
+function clamp01(v){ return Math.max(0, Math.min(1, v)); }
+function tempScore(t){ return clamp01(1 - Math.abs(t - 70) / 40); }
+function humScore(h){ return clamp01(1 - Math.abs(h - 40) / 40); }
+function costScore(f){ return (f - 50) / 300; }
+function sigmoid(z){ return 1 / (1 + Math.exp(-z)); }
+
+function getInputs(){
+  return [
+    tempScore(+document.getElementById('temp').value),
+    humScore(+document.getElementById('humidity').value),
+    costScore(+document.getElementById('fee').value),
+    courseVal,
+    document.getElementById('riding').checked ? 1 : 0,
+    +document.getElementById('energy').value
+  ];
+}
+
+function getRawInputs(){
+  return {
+    temp: +document.getElementById('temp').value,
+    humidity: +document.getElementById('humidity').value,
+    fee: +document.getElementById('fee').value,
+    course: courseVal,
+    riding: document.getElementById('riding').checked ? 1 : 0,
+    energy: +document.getElementById('energy').value
+  };
+}
+
+function rawToScores(raw){
+  return [tempScore(raw.temp), humScore(raw.humidity), costScore(raw.fee), raw.course, raw.riding, raw.energy];
+}
+
+function forward(inputs, weights, bias){
+  let z = bias;
+  for(let i = 0; i < 6; i++) z += inputs[i] * weights[i];
+  const rideBonus = inputs[4] * (1 - inputs[0]) * 0.5;
+  z += rideBonus;
+  return { z, rideBonus, output: sigmoid(z) };
+}
+
+function updateAll(){
+  document.getElementById('tempVal').textContent = document.getElementById('temp').value + '\u00b0F';
+  document.getElementById('humVal').textContent = document.getElementById('humidity').value + '%';
+  document.getElementById('feeVal').textContent = '$' + document.getElementById('fee').value;
+  document.getElementById('energyVal').textContent = (+document.getElementById('energy').value).toFixed(2);
+  document.getElementById('biasVal').textContent = (+document.getElementById('bias').value).toFixed(1);
+
+  const userBias = +document.getElementById('bias').value;
+  const inputs = getInputs();
+  const totalBias = B + userBias;
+  const { z, rideBonus, output } = forward(inputs, W, totalBias);
+  const pct = Math.round(output * 100);
+  const yes = output >= 0.5;
+
+  const bar = document.getElementById('barFill');
+  bar.style.width = Math.max(pct, 5) + '%';
+  bar.style.background = yes
+    ? 'linear-gradient(90deg, #388e3c, #66bb6a)'
+    : 'linear-gradient(90deg, #c62828, #ef5350)';
+  bar.textContent = pct + '%';
+
+  const dec = document.getElementById('decisionText');
+  if(yes){
+    dec.className = 'decision yes';
+    dec.innerHTML = 'YES! Hit the links! \u{1F3CC}\uFE0F';
+  } else {
+    dec.className = 'decision no';
+    dec.innerHTML = 'NO. Stay home, practice your putting carpet. \u{1F3E0}';
+  }
+
+  updateMath(inputs, W, totalBias, rideBonus, z, output);
+  drawHeatmap();
+  updateWeightsDisplay();
+}
+
+function updateMath(inputs, w, bias, rideBonus, z, output){
+  const names = ['temp_score','humidity_score','cost_score','course_quality','riding','energy'];
+  let html = '<div class="term"><span>z =</span></div>';
+  for(let i = 0; i < 6; i++){
+    const val = inputs[i] * w[i];
+    const cls = val >= 0 ? 'pos' : 'neg';
+    const sign = val >= 0 ? '+' : '';
+    html += `<div class="term"><span>&nbsp;&nbsp;${sign}(${inputs[i].toFixed(2)} \u00d7 ${w[i].toFixed(1)}) <small>${names[i]}</small></span><span class="${cls}">${sign}${val.toFixed(3)}</span></div>`;
+  }
+  html += `<div class="term"><span>&nbsp;&nbsp;+ ride_bonus</span><span class="pos">+${rideBonus.toFixed(3)}</span></div>`;
+  html += `<div class="term"><span>&nbsp;&nbsp;+ bias</span><span class="${bias >= 0 ? 'pos' : 'neg'}">${bias >= 0 ? '+' : ''}${bias.toFixed(1)}</span></div>`;
+  html += '<hr style="border-color:#445544;margin:4px 0">';
+  html += `<div class="term"><span>z = ${z.toFixed(3)}</span></div>`;
+  html += `<div class="term"><span>sigmoid(z) = ${output.toFixed(4)}</span><span style="color:var(--gold)">${Math.round(output * 100)}%</span></div>`;
+  document.getElementById('mathBody').innerHTML = html;
+}
+
+// --- Heatmap ---
+function initAxisSelectors(){
+  const sx = document.getElementById('axisX');
+  const sy = document.getElementById('axisY');
+  inputLabels.forEach((l, i) => {
+    sx.innerHTML += `<option value="${i}"${i === 0 ? ' selected' : ''}>${l}</option>`;
+    sy.innerHTML += `<option value="${i}"${i === 5 ? ' selected' : ''}>${l}</option>`;
+  });
+  sx.onchange = sy.onchange = () => drawHeatmap();
+}
+
+function drawHeatmap(){
+  const canvas = document.getElementById('heatmap');
+  const ctx = canvas.getContext('2d');
+  const W_ = canvas.clientWidth;
+  const H_ = Math.round(W_ * 0.75);
+  canvas.width = W_;
+  canvas.height = H_;
+
+  const xi = +document.getElementById('axisX').value;
+  const yi = +document.getElementById('axisY').value;
+  const raw = getRawInputs();
+  const userBias = +document.getElementById('bias').value;
+  const totalBias = B + userBias;
+
+  const res = 100;
+  const xr = inputRanges[xi], yr = inputRanges[yi];
+
+  // Render heatmap to small buffer then scale up
+  const buf = ctx.createImageData(res, res);
+  for(let py = 0; py < res; py++){
+    for(let px = 0; px < res; px++){
+      const xv = xr[0] + (px / (res - 1)) * (xr[1] - xr[0]);
+      const yv = yr[1] - (py / (res - 1)) * (yr[1] - yr[0]);
+      const testRaw = { ...raw };
+      testRaw[inputKeys[xi]] = xv;
+      testRaw[inputKeys[yi]] = yv;
+      const scores = rawToScores(testRaw);
+      const { output } = forward(scores, W, totalBias);
+
+      let r, g, b;
+      if(output < 0.5){
+        const t = output / 0.5;
+        r = Math.round(66 + (240 - 66) * t);
+        g = Math.round(133 + (240 - 133) * t);
+        b = Math.round(244 + (240 - 244) * t);
+      } else {
+        const t = (output - 0.5) / 0.5;
+        r = Math.round(240 + (76 - 240) * t);
+        g = Math.round(240 + (175 - 240) * t);
+        b = Math.round(240 + (80 - 240) * t);
+      }
+      const idx = (py * res + px) * 4;
+      buf.data[idx] = r;
+      buf.data[idx + 1] = g;
+      buf.data[idx + 2] = b;
+      buf.data[idx + 3] = 255;
+    }
+  }
+
+  const tmp = document.createElement('canvas');
+  tmp.width = res; tmp.height = res;
+  tmp.getContext('2d').putImageData(buf, 0, 0);
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(tmp, 0, 0, W_, H_);
+
+  // Gold contour at 0.5 boundary
+  ctx.strokeStyle = '#ffd700';
+  ctx.lineWidth = 2.5;
+  ctx.shadowColor = '#ffd700';
+  ctx.shadowBlur = 6;
+  ctx.beginPath();
+  let started = false;
+  const cRes = 300;
+  for(let px = 0; px < cRes; px++){
+    const xv = xr[0] + (px / (cRes - 1)) * (xr[1] - xr[0]);
+    // Check if boundary exists at this x by testing extremes
+    const testLo = { ...raw }; testLo[inputKeys[xi]] = xv; testLo[inputKeys[yi]] = yr[0];
+    const testHi = { ...raw }; testHi[inputKeys[xi]] = xv; testHi[inputKeys[yi]] = yr[1];
+    const oLo = forward(rawToScores(testLo), W, totalBias).output;
+    const oHi = forward(rawToScores(testHi), W, totalBias).output;
+
+    if((oLo - 0.5) * (oHi - 0.5) > 0){
+      // No crossing at this x
+      if(started){ ctx.stroke(); ctx.beginPath(); started = false; }
+      continue;
+    }
+
+    // Binary search for y where output = 0.5
+    let lo = yr[0], hi = yr[1];
+    for(let it = 0; it < 40; it++){
+      const mid = (lo + hi) / 2;
+      const testMid = { ...raw }; testMid[inputKeys[xi]] = xv; testMid[inputKeys[yi]] = mid;
+      const o = forward(rawToScores(testMid), W, totalBias).output;
+      if(o > 0.5) hi = mid; else lo = mid;
+    }
+    const yFound = (lo + hi) / 2;
+    const canvasX = (px / (cRes - 1)) * W_;
+    const canvasY = (1 - (yFound - yr[0]) / (yr[1] - yr[0])) * H_;
+
+    if(!started){ ctx.moveTo(canvasX, canvasY); started = true; }
+    else ctx.lineTo(canvasX, canvasY);
+  }
+  if(started) ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Current position dot + crosshair
+  const curX = raw[inputKeys[xi]];
+  const curY = raw[inputKeys[yi]];
+  const cx = ((curX - xr[0]) / (xr[1] - xr[0])) * W_;
+  const cy = (1 - (curY - yr[0]) / (yr[1] - yr[0])) * H_;
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, H_); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(W_, cy); ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = '#ffd700';
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(cx, cy, 7, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+  // Training points
+  trainPoints.forEach(p => {
+    const ppx = ((p.raw[inputKeys[xi]] - xr[0]) / (xr[1] - xr[0])) * W_;
+    const ppy = (1 - (p.raw[inputKeys[yi]] - yr[0]) / (yr[1] - yr[0])) * H_;
+    ctx.fillStyle = p.label === 1 ? '#66bb6a' : '#ef5350';
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(ppx, ppy, 6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    // Inner symbol
+    ctx.fillStyle = '#000';
+    ctx.font = 'bold 8px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(p.label === 1 ? '+' : '-', ppx, ppy);
+  });
+
+  // Axis labels
+  ctx.fillStyle = '#a5d6a7';
+  ctx.font = '12px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText(inputLabels[xi], W_ / 2, H_ - 16);
+  ctx.save();
+  ctx.translate(14, H_ / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textBaseline = 'bottom';
+  ctx.fillText(inputLabels[yi], 0, 0);
+  ctx.restore();
+
+  // Tick labels
+  ctx.fillStyle = '#7a9a7a';
+  ctx.font = '10px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  for(let i = 0; i <= 4; i++){
+    const v = xr[0] + i * (xr[1] - xr[0]) / 4;
+    ctx.fillText(fmtTick(xi, v), (i / 4) * W_, H_ - 28);
+  }
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  for(let i = 0; i <= 4; i++){
+    const v = yr[0] + i * (yr[1] - yr[0]) / 4;
+    ctx.fillText(fmtTick(yi, v), 28, H_ - (i / 4) * H_);
+  }
+}
+
+function fmtTick(idx, v){
+  if(idx === 0) return Math.round(v) + '\u00b0';
+  if(idx === 1) return Math.round(v) + '%';
+  if(idx === 2) return '$' + Math.round(v);
+  if(idx === 3){
+    const labels = ['Muni','Club','CC','TPC','Tourn'];
+    const i = Math.round(v * 4);
+    return labels[i] || v.toFixed(1);
+  }
+  if(idx === 4) return v < 0.5 ? 'Walk' : 'Ride';
+  return v.toFixed(1);
+}
+
+// --- Training ---
+function setLabelMode(mode){
+  labelMode = mode;
+  document.getElementById('btnYes').style.outline = mode === 'yes' ? '3px solid var(--gold)' : 'none';
+  document.getElementById('btnNo').style.outline = mode === 'no' ? '3px solid var(--gold)' : 'none';
+  const ind = document.getElementById('labelIndicator');
+  if(mode === 'yes'){
+    ind.innerHTML = '<span class="label-mode-indicator yes-mode">Adding YES points</span>';
+  } else {
+    ind.innerHTML = '<span class="label-mode-indicator no-mode">Adding NO points</span>';
+  }
+}
+
+document.getElementById('heatmap').addEventListener('click', function(e){
+  if(!labelMode) return;
+  const rect = this.getBoundingClientRect();
+  const px = (e.clientX - rect.left) / rect.width;
+  const py = (e.clientY - rect.top) / rect.height;
+  const xi = +document.getElementById('axisX').value;
+  const yi = +document.getElementById('axisY').value;
+  const xr = inputRanges[xi], yr = inputRanges[yi];
+  const xv = xr[0] + px * (xr[1] - xr[0]);
+  const yv = yr[1] - py * (yr[1] - yr[0]);
+
+  const raw = getRawInputs();
+  raw[inputKeys[xi]] = xv;
+  raw[inputKeys[yi]] = yv;
+
+  trainPoints.push({ raw: { ...raw }, label: labelMode === 'yes' ? 1 : 0 });
+  updateAll();
+});
+
+function trainStep(n){
+  const lr = +document.getElementById('lr').value;
+  const userBias = +document.getElementById('bias').value;
+  for(let s = 0; s < n; s++){
+    trainPoints.forEach(p => {
+      const scores = rawToScores(p.raw);
+      const totalBias = B + userBias;
+      const { output } = forward(scores, W, totalBias);
+      const error = p.label - output;
+      for(let i = 0; i < 6; i++){
+        W[i] += lr * error * scores[i];
+      }
+      B += lr * error;
+    });
+    steps++;
+  }
+  updateAll();
+}
+
+function resetTraining(){
+  trainPoints = [];
+  W = [...defaults.w];
+  B = defaults.bias;
+  steps = 0;
+  labelMode = null;
+  document.getElementById('btnYes').style.outline = 'none';
+  document.getElementById('btnNo').style.outline = 'none';
+  document.getElementById('labelIndicator').innerHTML = '';
+  updateAll();
+}
+
+function updateWeightsDisplay(){
+  const names = ['w\u2081(temp)','w\u2082(hum)','w\u2083(cost)','w\u2084(course)','w\u2085(ride)','w\u2086(energy)'];
+  let html = 'Weights: ';
+  html += names.map((n, i) => `<span>${n}=${W[i].toFixed(2)}</span>`).join(' &nbsp;');
+  html += ` &nbsp; bias=${B.toFixed(2)}`;
+  document.getElementById('weightsDisplay').innerHTML = html;
+  document.getElementById('stepCount').textContent = steps;
+
+  if(trainPoints.length > 0){
+    const userBias = +document.getElementById('bias').value;
+    const totalBias = B + userBias;
+    let correct = 0, totalLoss = 0;
+    trainPoints.forEach(p => {
+      const scores = rawToScores(p.raw);
+      const { output } = forward(scores, W, totalBias);
+      if((output >= 0.5 ? 1 : 0) === p.label) correct++;
+      totalLoss += -(p.label * Math.log(output + 1e-8) + (1 - p.label) * Math.log(1 - output + 1e-8));
+    });
+    document.getElementById('accuracy').textContent = Math.round(correct / trainPoints.length * 100) + '%';
+    document.getElementById('lossVal').textContent = (totalLoss / trainPoints.length).toFixed(3);
+  } else {
+    document.getElementById('accuracy').textContent = '-';
+    document.getElementById('lossVal').textContent = '-';
+  }
+}
+
+// --- Panel toggles ---
+function togglePanel(h2, panelId){
+  h2.classList.toggle('open');
+  document.getElementById(panelId).classList.toggle('open');
+}
+
+// --- Course quality buttons ---
+document.getElementById('courseBtns').addEventListener('click', e => {
+  if(e.target.tagName !== 'BUTTON') return;
+  document.querySelectorAll('#courseBtns button').forEach(b => b.classList.remove('active'));
+  e.target.classList.add('active');
+  courseVal = +e.target.dataset.val;
+  updateAll();
+});
+
+// --- Learning rate display ---
+document.getElementById('lr').addEventListener('input', function(){
+  document.getElementById('lrVal').textContent = (+this.value).toFixed(2);
+});
+
+// --- Bind all inputs ---
+['temp','humidity','fee','energy','bias'].forEach(id => {
+  document.getElementById(id).addEventListener('input', updateAll);
+});
+document.getElementById('riding').addEventListener('change', updateAll);
+
+// --- Init ---
+initAxisSelectors();
+updateAll();
+</script>
+</body>
+</html>

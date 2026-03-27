@@ -1,0 +1,22 @@
+{
+  "student_last_name": "unfixedgoat",
+  "ai_sentiment_score": 4,
+  "ai_sentiment_label": "Optimistic",
+  "llm_usage_frequency_score": 3,
+  "llm_usage_frequency_label": "Occasionally (Weekly)",
+  "tech_background_scores": {
+    "coding_overall": 1,
+    "command_line": 1,
+    "html_css": 1,
+    "programming_general": 1,
+    "text_editors": 1,
+    "git_version_control": 1
+  },
+  "demographics": {
+    "gender": "Male",
+    "primary_major": "Neuroscience",
+    "primary_major_other": "Neuroscience",
+    "additional_majors": [],
+    "additional_majors_other": "Chemistry, spanish for health sciences"
+  }
+}

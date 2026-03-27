@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Julia Set Explorer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Background Grid -->
+  <canvas id="grid-bg" class="grid-background"></canvas>
+
+  <!-- Main Fractal Canvas -->
+  <div id="canvas-container" class="canvas-container">
+    <canvas id="fractal-canvas"></canvas>
+    <div class="scanline-overlay"></div>
+    <div class="vignette-overlay"></div>
+  </div>
+
+  <!-- HUD Overlay -->
+  <div id="hud" class="hud">
+    <div class="hud-row"><span class="hud-label">C:</span> <span id="hud-c" class="hud-value">0.000 + 0.000i</span></div>
+    <div class="hud-row"><span class="hud-label">ZOOM:</span> <span id="hud-zoom" class="hud-value">1.00x</span></div>
+    <div class="hud-row"><span class="hud-label">ITER:</span> <span id="hud-iter" class="hud-value">200</span></div>
+  </div>
+
+  <!-- Info Panel Toggle -->
+  <button id="info-toggle" class="info-toggle" title="Info Panel">&#x2139; INFO</button>
+
+  <!-- Info Panel -->
+  <div id="info-panel" class="info-panel">
+    <div class="info-panel-inner">
+      <h2 class="neon-heading">&#x2139; Julia Set Info</h2>
+      <div class="info-section">
+        <h3 class="neon-sub">Parameters</h3>
+        <div class="info-row"><span class="info-label">c value:</span> <span id="info-c" class="info-val">0 + 0i</span></div>
+        <div class="info-row"><span class="info-label">Zoom:</span> <span id="info-zoom" class="info-val">1.00x</span></div>
+        <div class="info-row"><span class="info-label">Center:</span> <span id="info-center" class="info-val">0 + 0i</span></div>
+        <div class="info-row"><span class="info-label">Max Iter:</span> <span id="info-iter" class="info-val">200</span></div>
+      </div>
+      <div class="info-section">
+        <h3 class="neon-sub">Classification</h3>
+        <p id="info-classification" class="info-text">--</p>
+      </div>
+      <div class="info-section">
+        <h3 class="neon-sub">Named Set</h3>
+        <p id="info-named" class="info-text">--</p>
+      </div>
+      <div class="info-section">
+        <h3 class="neon-sub">How It Works</h3>
+        <p id="info-edu" class="info-text">
+          The Julia set for a complex constant <strong>c</strong> is defined by iterating
+          <strong>z &rarr; z&sup2; + c</strong> for every point z in the complex plane.
+          Points that remain bounded under iteration are in the Julia set (shown dark);
+          points that escape to infinity are colored by how quickly they escape.
+          The boundary between these regions produces infinitely complex fractal structure.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Controls Drawer Toggle -->
+  <button id="drawer-toggle" class="drawer-toggle">&#x25B2; CONTROLS</button>
+
+  <!-- Controls Drawer -->
+  <div id="controls-drawer" class="controls-drawer">
+    <div class="controls-inner">
+      <!-- Sliders Row -->
+      <div class="controls-group">
+        <div class="slider-block">
+          <label class="ctrl-label">c (real)</label>
+          <input type="range" id="slider-real" class="neon-slider" min="-2" max="2" step="0.001" value="-0.75">
+          <span id="val-real" class="slider-val">-0.750</span>
+        </div>
+        <div class="slider-block">
+          <label class="ctrl-label">c (imag)</label>
+          <input type="range" id="slider-imag" class="neon-slider" min="-2" max="2" step="0.001" value="0.11">
+          <span id="val-imag" class="slider-val">0.110</span>
+        </div>
+        <div class="slider-block">
+          <label class="ctrl-label">Max Iter</label>
+          <input type="range" id="slider-iter" class="neon-slider" min="50" max="500" step="10" value="200">
+          <span id="val-iter" class="slider-val">200</span>
+        </div>
+      </div>
+
+      <!-- Color Schemes -->
+      <div class="controls-group">
+        <label class="ctrl-label">Color Scheme</label>
+        <div class="palette-row">
+          <button class="palette-btn active" data-palette="neonNights">
+            <span class="palette-preview neon-nights-preview"></span>
+            <span class="palette-name">Neon Nights</span>
+          </button>
+          <button class="palette-btn" data-palette="sunsetBoulevard">
+            <span class="palette-preview sunset-preview"></span>
+            <span class="palette-name">Sunset Blvd</span>
+          </button>
+          <button class="palette-btn" data-palette="electricGrid">
+            <span class="palette-preview electric-preview"></span>
+            <span class="palette-name">Electric Grid</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Presets -->
+      <div class="controls-group">
+        <label class="ctrl-label">Presets</label>
+        <div class="preset-row">
+          <button class="preset-btn" data-real="0" data-imag="1">Dendrite</button>
+          <button class="preset-btn" data-real="-0.75" data-imag="0.11">Spiral</button>
+          <button class="preset-btn" data-real="-0.123" data-imag="0.745">Rabbit</button>
+          <button class="preset-btn" data-real="-0.75" data-imag="0">San Marco</button>
+          <button class="preset-btn" data-real="-0.8" data-imag="0.156">Dragons</button>
+          <button class="preset-btn" data-real="-0.4" data-imag="0.6">Starfish</button>
+          <button class="preset-btn" data-real="-1.25" data-imag="0">Lightning</button>
+        </div>
+      </div>
+
+      <!-- Animation Controls -->
+      <div class="controls-group">
+        <div class="anim-row">
+          <button id="btn-ambient" class="toggle-btn">&#x2728; AMBIENT</button>
+          <div class="slider-block small">
+            <label class="ctrl-label">Speed</label>
+            <input type="range" id="slider-speed" class="neon-slider" min="0.1" max="3" step="0.1" value="1">
+          </div>
+          <button id="btn-dj" class="toggle-btn">&#x1F3B5; DJ MODE</button>
+          <button id="btn-reset" class="action-btn">&#x21BA; RESET VIEW</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mandelbrot Minimap (for DJ Mode) -->
+  <div id="mandelbrot-minimap" class="mandelbrot-minimap hidden">
+    <div class="minimap-header">Mandelbrot Map</div>
+    <canvas id="mandelbrot-canvas" width="200" height="160"></canvas>
+    <div class="minimap-crosshair" id="minimap-crosshair"></div>
+  </div>
+
+  <script src="js/worker-bootstrap.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

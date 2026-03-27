@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Turing Patterns Explorer</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #0a0a14;
+    color: #c8c8d0;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  header {
+    text-align: center;
+    padding: 18px 0 10px;
+    font-size: 1.6rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: #e0e0f0;
+  }
+
+  #app {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 24px;
+    padding: 0 24px 24px;
+  }
+
+  /* ---- Canvas area ---- */
+  #canvas-wrap {
+    position: relative;
+    flex-shrink: 0;
+  }
+  #sim-canvas {
+    display: block;
+    border-radius: 8px;
+    cursor: crosshair;
+    image-rendering: pixelated;
+    background: #000;
+  }
+  #brush-cursor {
+    position: absolute;
+    pointer-events: none;
+    border: 1.5px solid rgba(255,255,255,0.55);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    display: none;
+  }
+
+  /* ---- Brush toolbar ---- */
+  #brush-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+  }
+  #brush-toolbar label { font-size: 0.78rem; color: #999; }
+  .brush-btn {
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid #333;
+    background: #16162a;
+    color: #b0b0c0;
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .brush-btn.active { background: #2a2a50; border-color: #6a6aff; color: #fff; }
+  .brush-btn:hover { background: #222244; }
+  #brush-size-slider { width: 80px; }
+  #brush-size-val { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.78rem; min-width: 28px; text-align: right; }
+
+  /* ---- Controls panel ---- */
+  #controls {
+    width: 260px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .panel {
+    background: #111122;
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .panel h3 {
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #777;
+    margin-bottom: 10px;
+  }
+
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .slider-row label {
+    width: 50px;
+    font-size: 0.82rem;
+    color: #aaa;
+  }
+  .slider-row input[type=range] { flex: 1; }
+  .slider-val {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.82rem;
+    min-width: 44px;
+    text-align: right;
+    color: #ccc;
+  }
+
+  /* range styling */
+  input[type=range] {
+    -webkit-appearance: none;
+    height: 4px;
+    background: #2a2a40;
+    border-radius: 2px;
+    outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: #6a6aff;
+    cursor: pointer;
+  }
+
+  /* preset buttons */
+  .preset-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .preset-btn {
+    padding: 6px 0;
+    border-radius: 6px;
+    border: 1px solid #2a2a40;
+    background: #16162a;
+    color: #b0b0c0;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .preset-btn:hover { background: #222244; border-color: #6a6aff; }
+
+  /* color scheme select */
+  select {
+    width: 100%;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid #2a2a40;
+    background: #16162a;
+    color: #c0c0d0;
+    font-size: 0.82rem;
+    outline: none;
+  }
+
+  /* action buttons */
+  .action-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .action-btn {
+    flex: 1;
+    padding: 7px 0;
+    border-radius: 6px;
+    border: 1px solid #2a2a40;
+    background: #16162a;
+    color: #b0b0c0;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: background 0.15s;
+    min-width: 70px;
+    text-align: center;
+  }
+  .action-btn:hover { background: #222244; }
+  .action-btn.primary { border-color: #4a4aaa; background: #22224a; color: #d0d0ff; }
+
+  /* info panel */
+  #info-text {
+    font-size: 0.8rem;
+    line-height: 1.45;
+    color: #888;
+  }
+
+  /* ---- Parameter space diagram ---- */
+  #param-space-wrap {
+    text-align: center;
+    padding-bottom: 24px;
+  }
+  #param-space-wrap h3 {
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #777;
+    margin-bottom: 6px;
+  }
+  #param-canvas {
+    border-radius: 8px;
+    cursor: crosshair;
+    display: inline-block;
+  }
+
+  /* keyboard hints */
+  .kbd-hints {
+    font-size: 0.7rem;
+    color: #555;
+    margin-top: 4px;
+  }
+  kbd {
+    background: #1a1a30;
+    border: 1px solid #333;
+    border-radius: 3px;
+    padding: 1px 4px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.68rem;
+    color: #888;
+  }
+</style>
+</head>
+<body>
+
+<header>Turing Patterns Explorer</header>
+
+<div id="app">
+  <div>
+    <div id="canvas-wrap">
+      <canvas id="sim-canvas" width="512" height="512"></canvas>
+      <div id="brush-cursor"></div>
+    </div>
+    <div id="brush-toolbar">
+      <label>Chemical:</label>
+      <button class="brush-btn active" data-chem="V">V (dye)</button>
+      <button class="brush-btn" data-chem="U">U (base)</button>
+      <button class="brush-btn" data-mode="erase">Eraser</button>
+      <label>Size:</label>
+      <input type="range" id="brush-size-slider" min="1" max="30" value="5">
+      <span id="brush-size-val">5</span>
+      <div class="kbd-hints"><kbd>U</kbd> <kbd>V</kbd> <kbd>E</kbd> erase &nbsp; <kbd>[</kbd> <kbd>]</kbd> size</div>
+    </div>
+  </div>
+
+  <div id="controls">
+    <div class="panel">
+      <h3>Parameters</h3>
+      <div class="slider-row">
+        <label>Feed (F)</label>
+        <input type="range" id="f-slider" min="0.01" max="0.08" step="0.001" value="0.055">
+        <span class="slider-val" id="f-val">0.055</span>
+      </div>
+      <div class="slider-row">
+        <label>Kill (K)</label>
+        <input type="range" id="k-slider" min="0.04" max="0.07" step="0.001" value="0.062">
+        <span class="slider-val" id="k-val">0.062</span>
+      </div>
+      <div class="slider-row">
+        <label>Speed</label>
+        <input type="range" id="speed-slider" min="1" max="30" step="1" value="10">
+        <span class="slider-val" id="speed-val">10</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Presets</h3>
+      <div class="preset-grid">
+        <button class="preset-btn" data-f="0.035" data-k="0.065">Spots</button>
+        <button class="preset-btn" data-f="0.025" data-k="0.060">Stripes</button>
+        <button class="preset-btn" data-f="0.029" data-k="0.057">Labyrinth</button>
+        <button class="preset-btn" data-f="0.055" data-k="0.062">Coral</button>
+        <button class="preset-btn" data-f="0.014" data-k="0.047">Spirals</button>
+        <button class="preset-btn" data-f="0.039" data-k="0.058">Holes</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Color Scheme</h3>
+      <select id="color-select">
+        <option value="chemical">Chemical</option>
+        <option value="heat">Heat</option>
+        <option value="nature">Nature</option>
+        <option value="grayscale">Grayscale</option>
+        <option value="neon">Neon</option>
+      </select>
+    </div>
+
+    <div class="panel">
+      <div class="action-row">
+        <button class="action-btn primary" id="btn-play">Pause</button>
+        <button class="action-btn" id="btn-reset">Reset</button>
+        <button class="action-btn" id="btn-save">Save Image</button>
+      </div>
+      <div class="action-row" style="margin-top:6px;">
+        <button class="action-btn" id="btn-tour">Tour</button>
+        <button class="action-btn" id="btn-stop-tour" style="display:none;">Stop Tour</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Info</h3>
+      <div id="info-text">Coral &mdash; organic coral-like growth emerges from the reaction.</div>
+    </div>
+  </div>
+</div>
+
+<div id="param-space-wrap">
+  <h3>Parameter Space (click to set F &amp; K)</h3>
+  <canvas id="param-canvas" width="400" height="200"></canvas>
+</div>
+
+<script>
+// ============================================================
+//  SIMULATION
+// ============================================================
+const N = 256;
+const Du = 1.0, Dv = 0.5;
+let F = 0.055, K = 0.062;
+let stepsPerFrame = 10;
+let running = true;
+
+// Double-buffered grids
+let gridU = new Float32Array(N * N);
+let gridV = new Float32Array(N * N);
+let nextU = new Float32Array(N * N);
+let nextV = new Float32Array(N * N);
+
+let spiralSeed = false;
+
+function initGrid() {
+  gridU.fill(1.0);
+  gridV.fill(0.0);
+  const cx = N / 2, cy = N / 2;
+
+  if (spiralSeed) {
+    // Asymmetric seeding: multiple off-center patches to break symmetry
+    const offsets = [
+      { dx: -12, dy: -6 }, { dx: 8, dy: -10 }, { dx: -5, dy: 12 },
+      { dx: 14, dy: 5 },  { dx: 0, dy: 0 },    { dx: -10, dy: -14 },
+    ];
+    for (const { dx, dy } of offsets) {
+      const px = cx + dx, py = cy + dy;
+      const r = 3 + Math.floor(Math.random() * 4);
+      for (let y = py - r; y <= py + r; y++) {
+        for (let x = px - r; x <= px + r; x++) {
+          if ((x - px) ** 2 + (y - py) ** 2 > r * r) continue;
+          const i = ((y + N) % N) * N + ((x + N) % N);
+          gridU[i] = 0.5;
+          gridV[i] = 0.25;
+        }
+      }
+    }
+  } else {
+    // Standard centre square seed
+    const r = 10;
+    for (let y = cy - r; y <= cy + r; y++) {
+      for (let x = cx - r; x <= cx + r; x++) {
+        const i = ((y + N) % N) * N + ((x + N) % N);
+        gridU[i] = 0.5;
+        gridV[i] = 0.25;
+      }
+    }
+  }
+}
+
+function step() {
+  const dt = 1.0;
+  for (let y = 0; y < N; y++) {
+    const ym = ((y - 1) + N) % N;
+    const yp = (y + 1) % N;
+    for (let x = 0; x < N; x++) {
+      const xm = ((x - 1) + N) % N;
+      const xp = (x + 1) % N;
+      const i = y * N + x;
+
+      const u = gridU[i];
+      const v = gridV[i];
+
+      // Laplacian (weighted 3x3 kernel: adjacent=0.2, diagonal=0.05, center=-1)
+      const lapU =
+        0.2  * gridU[ym * N + x]  + 0.2  * gridU[yp * N + x]  +
+        0.2  * gridU[y  * N + xm] + 0.2  * gridU[y  * N + xp] +
+        0.05 * gridU[ym * N + xm] + 0.05 * gridU[ym * N + xp] +
+        0.05 * gridU[yp * N + xm] + 0.05 * gridU[yp * N + xp] -
+        u;
+      const lapV =
+        0.2  * gridV[ym * N + x]  + 0.2  * gridV[yp * N + x]  +
+        0.2  * gridV[y  * N + xm] + 0.2  * gridV[y  * N + xp] +
+        0.05 * gridV[ym * N + xm] + 0.05 * gridV[ym * N + xp] +
+        0.05 * gridV[yp * N + xm] + 0.05 * gridV[yp * N + xp] -
+        v;
+
+      const uvv = u * v * v;
+      nextU[i] = u + dt * (Du * lapU - uvv + F * (1 - u));
+      nextV[i] = v + dt * (Dv * lapV + uvv - (F + K) * v);
+    }
+  }
+  // Swap
+  [gridU, nextU] = [nextU, gridU];
+  [gridV, nextV] = [nextV, gridV];
+}
+
+// ============================================================
+//  COLOR MAPS
+// ============================================================
+function lerp(a, b, t) { return a + (b - a) * t; }
+function lerpColor(c1, c2, t) {
+  return [lerp(c1[0], c2[0], t), lerp(c1[1], c2[1], t), lerp(c1[2], c2[2], t)];
+}
+function sampleGradient(stops, t) {
+  t = Math.max(0, Math.min(1, t));
+  if (t <= 0) return stops[0];
+  if (t >= 1) return stops[stops.length - 1];
+  const seg = (stops.length - 1) * t;
+  const i = Math.floor(seg);
+  const frac = seg - i;
+  return lerpColor(stops[i], stops[Math.min(i + 1, stops.length - 1)], frac);
+}
+
+const COLOR_MAPS = {
+  chemical: [[0,0,0],[0,40,120],[0,180,220],[255,255,255]],
+  heat:     [[0,0,0],[180,30,0],[240,200,0],[255,255,255]],
+  nature:   [[10,50,10],[30,140,30],[180,200,50],[240,230,200]],
+  grayscale:[[0,0,0],[255,255,255]],
+  neon:     [[0,0,0],[100,0,160],[220,0,180],[255,100,200]],
+};
+let currentColorMap = 'chemical';
+
+// Pre-build 256-entry LUT for active color map
+let colorLUT = new Uint8Array(256 * 3);
+function buildLUT() {
+  const stops = COLOR_MAPS[currentColorMap];
+  for (let i = 0; i < 256; i++) {
+    const c = sampleGradient(stops, i / 255);
+    colorLUT[i * 3]     = c[0];
+    colorLUT[i * 3 + 1] = c[1];
+    colorLUT[i * 3 + 2] = c[2];
+  }
+}
+buildLUT();
+
+// ============================================================
+//  RENDERING
+// ============================================================
+const simCanvas = document.getElementById('sim-canvas');
+const simCtx = simCanvas.getContext('2d');
+const imgData = simCtx.createImageData(N, N);
+const pixels = imgData.data;
+
+function render() {
+  for (let i = 0; i < N * N; i++) {
+    const v = Math.max(0, Math.min(255, (gridV[i] * 255) | 0));
+    const p = i * 4;
+    const c = v * 3;
+    pixels[p]     = colorLUT[c];
+    pixels[p + 1] = colorLUT[c + 1];
+    pixels[p + 2] = colorLUT[c + 2];
+    pixels[p + 3] = 255;
+  }
+  simCtx.putImageData(imgData, 0, 0);
+  // Scale up to canvas display size
+  simCtx.imageSmoothingEnabled = false;
+  // We rendered at N×N but canvas is 512×512; use a temp approach
+}
+
+// Because putImageData ignores transforms, use offscreen to scale
+const offCanvas = document.createElement('canvas');
+offCanvas.width = N; offCanvas.height = N;
+const offCtx = offCanvas.getContext('2d');
+const offImg = offCtx.createImageData(N, N);
+const offPx = offImg.data;
+
+function renderScaled() {
+  for (let i = 0; i < N * N; i++) {
+    const v = Math.max(0, Math.min(255, (gridV[i] * 255) | 0));
+    const p = i * 4;
+    const c = v * 3;
+    offPx[p]     = colorLUT[c];
+    offPx[p + 1] = colorLUT[c + 1];
+    offPx[p + 2] = colorLUT[c + 2];
+    offPx[p + 3] = 255;
+  }
+  offCtx.putImageData(offImg, 0, 0);
+  simCtx.imageSmoothingEnabled = false;
+  simCtx.drawImage(offCanvas, 0, 0, 512, 512);
+}
+
+// ============================================================
+//  ANIMATION LOOP
+// ============================================================
+function frame() {
+  if (running) {
+    for (let s = 0; s < stepsPerFrame; s++) step();
+  }
+  renderScaled();
+  updateTour();
+  requestAnimationFrame(frame);
+}
+
+// ============================================================
+//  BRUSH / INTERACTION ON CANVAS
+// ============================================================
+let brushChem = 'V'; // 'V', 'U', or 'erase'
+let brushSize = 5;
+let painting = false;
+
+function canvasCoords(e) {
+  const rect = simCanvas.getBoundingClientRect();
+  const sx = N / rect.width;
+  const sy = N / rect.height;
+  return [Math.floor((e.clientX - rect.left) * sx), Math.floor((e.clientY - rect.top) * sy)];
+}
+
+function paint(cx, cy) {
+  const r = brushSize;
+  for (let dy = -r; dy <= r; dy++) {
+    for (let dx = -r; dx <= r; dx++) {
+      const dist2 = dx * dx + dy * dy;
+      if (dist2 > r * r) continue;
+      const x = (cx + dx + N) % N;
+      const y = (cy + dy + N) % N;
+      const i = y * N + x;
+      // Soft falloff: strongest at center, fades to edge
+      const strength = 0.3 * (1 - Math.sqrt(dist2) / r);
+      if (brushChem === 'erase') {
+        gridU[i] += (1.0 - gridU[i]) * strength;
+        gridV[i] -= gridV[i] * strength;
+      } else if (brushChem === 'V') {
+        // Perturb toward reaction seed state (U drops, V rises)
+        gridV[i] = Math.min(1, gridV[i] + strength);
+        gridU[i] = Math.max(0, gridU[i] - strength * 0.5);
+      } else {
+        // Flood U back in, displacing V
+        gridU[i] = Math.min(1, gridU[i] + strength);
+        gridV[i] = Math.max(0, gridV[i] - strength * 0.5);
+      }
+    }
+  }
+}
+
+simCanvas.addEventListener('mousedown', e => { painting = true; paint(...canvasCoords(e)); });
+simCanvas.addEventListener('mousemove', e => {
+  // brush cursor
+  const bc = document.getElementById('brush-cursor');
+  const rect = simCanvas.getBoundingClientRect();
+  const scale = rect.width / N;
+  const diam = brushSize * 2 * scale;
+  bc.style.width = diam + 'px';
+  bc.style.height = diam + 'px';
+  bc.style.left = (e.clientX - rect.left) + 'px';
+  bc.style.top = (e.clientY - rect.top) + 'px';
+  bc.style.display = 'block';
+  if (painting) paint(...canvasCoords(e));
+});
+simCanvas.addEventListener('mouseup', () => painting = false);
+simCanvas.addEventListener('mouseleave', () => {
+  painting = false;
+  document.getElementById('brush-cursor').style.display = 'none';
+});
+
+// ============================================================
+//  BRUSH TOOLBAR
+// ============================================================
+document.querySelectorAll('#brush-toolbar .brush-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#brush-toolbar .brush-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    if (btn.dataset.mode === 'erase') brushChem = 'erase';
+    else brushChem = btn.dataset.chem;
+  });
+});
+const brushSlider = document.getElementById('brush-size-slider');
+brushSlider.addEventListener('input', () => {
+  brushSize = +brushSlider.value;
+  document.getElementById('brush-size-val').textContent = brushSize;
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  if (e.key === 'u' || e.key === 'U') selectBrushBtn('U');
+  if (e.key === 'v' || e.key === 'V') selectBrushBtn('V');
+  if (e.key === 'e' || e.key === 'E') selectBrushBtn('erase');
+  if (e.key === '[') { brushSlider.value = Math.max(1, brushSize - 1); brushSlider.dispatchEvent(new Event('input')); }
+  if (e.key === ']') { brushSlider.value = Math.min(30, brushSize + 1); brushSlider.dispatchEvent(new Event('input')); }
+});
+function selectBrushBtn(type) {
+  document.querySelectorAll('#brush-toolbar .brush-btn').forEach(b => {
+    b.classList.remove('active');
+    if (type === 'erase' && b.dataset.mode === 'erase') { b.classList.add('active'); brushChem = 'erase'; }
+    else if (b.dataset.chem === type && b.dataset.mode !== 'erase') { b.classList.add('active'); brushChem = type; }
+  });
+}
+
+// ============================================================
+//  SLIDERS
+// ============================================================
+const fSlider = document.getElementById('f-slider');
+const kSlider = document.getElementById('k-slider');
+const speedSlider = document.getElementById('speed-slider');
+const fVal = document.getElementById('f-val');
+const kVal = document.getElementById('k-val');
+const speedVal = document.getElementById('speed-val');
+
+fSlider.addEventListener('input', () => { F = +fSlider.value; fVal.textContent = F.toFixed(3); updateInfo(); drawParamSpace(); });
+kSlider.addEventListener('input', () => { K = +kSlider.value; kVal.textContent = K.toFixed(3); updateInfo(); drawParamSpace(); });
+speedSlider.addEventListener('input', () => { stepsPerFrame = +speedSlider.value; speedVal.textContent = stepsPerFrame; });
+
+function setFK(f, k, resetGrid = true) {
+  F = f; K = k;
+  fSlider.value = f; kSlider.value = k;
+  fVal.textContent = f.toFixed(3); kVal.textContent = k.toFixed(3);
+  if (resetGrid) { initGrid(); }
+  updateInfo();
+  drawParamSpace();
+}
+
+// ============================================================
+//  PRESETS
+// ============================================================
+document.querySelectorAll('.preset-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    spiralSeed = (btn.textContent.trim() === 'Spirals');
+    setFK(+btn.dataset.f, +btn.dataset.k, true);
+    if (!running) { running = true; document.getElementById('btn-play').textContent = 'Pause'; }
+  });
+});
+
+// ============================================================
+//  COLOR SCHEME
+// ============================================================
+document.getElementById('color-select').addEventListener('change', e => {
+  currentColorMap = e.target.value;
+  buildLUT();
+});
+
+// ============================================================
+//  ACTION BUTTONS
+// ============================================================
+document.getElementById('btn-play').addEventListener('click', function() {
+  running = !running;
+  this.textContent = running ? 'Pause' : 'Play';
+});
+document.getElementById('btn-reset').addEventListener('click', () => {
+  initGrid();
+});
+document.getElementById('btn-save').addEventListener('click', () => {
+  const link = document.createElement('a');
+  link.download = 'turing-pattern.png';
+  link.href = simCanvas.toDataURL('image/png');
+  link.click();
+});
+
+// ============================================================
+//  INFO PANEL
+// ============================================================
+const PATTERN_REGIONS = [
+  { name: 'Spots', desc: 'mitosis-like dividing dots', f: 0.035, k: 0.065 },
+  { name: 'Stripes', desc: 'worm-like parallel lines', f: 0.025, k: 0.060 },
+  { name: 'Labyrinth', desc: 'maze-like winding patterns', f: 0.029, k: 0.057 },
+  { name: 'Coral', desc: 'organic coral-like growth', f: 0.055, k: 0.062 },
+  { name: 'Spirals', desc: 'rotating spiral waves', f: 0.014, k: 0.047 },
+  { name: 'Holes', desc: 'inverse spots (holes in solid)', f: 0.039, k: 0.058 },
+];
+function updateInfo() {
+  let best = null, bestDist = Infinity;
+  for (const r of PATTERN_REGIONS) {
+    const d = Math.hypot(F - r.f, K - r.k);
+    if (d < bestDist) { bestDist = d; best = r; }
+  }
+  const el = document.getElementById('info-text');
+  if (bestDist < 0.008) {
+    el.textContent = `${best.name} \u2014 ${best.desc}.`;
+  } else {
+    el.textContent = `F=${F.toFixed(3)}, K=${K.toFixed(3)} \u2014 exploring parameter space. Patterns may be unstable or novel.`;
+  }
+}
+
+// ============================================================
+//  PARAMETER SPACE DIAGRAM
+// ============================================================
+const paramCanvas = document.getElementById('param-canvas');
+const paramCtx = paramCanvas.getContext('2d');
+const PW = paramCanvas.width, PH = paramCanvas.height;
+const F_MIN = 0.01, F_MAX = 0.08;
+const K_MIN = 0.04, K_MAX = 0.07;
+
+function paramToPixel(f, k) {
+  return [
+    ((f - F_MIN) / (F_MAX - F_MIN)) * PW,
+    PH - ((k - K_MIN) / (K_MAX - K_MIN)) * PH
+  ];
+}
+function pixelToParam(px, py) {
+  return [
+    F_MIN + (px / PW) * (F_MAX - F_MIN),
+    K_MIN + ((PH - py) / PH) * (K_MAX - K_MIN)
+  ];
+}
+
+// Region colors for the background
+const regionColors = {
+  Spots:     'rgba(255,100,100,0.35)',
+  Stripes:   'rgba(100,100,255,0.35)',
+  Labyrinth: 'rgba(100,255,100,0.35)',
+  Coral:     'rgba(255,200,50,0.35)',
+  Spirals:   'rgba(200,100,255,0.35)',
+  Holes:     'rgba(100,200,200,0.35)',
+};
+
+function drawParamSpace() {
+  paramCtx.fillStyle = '#0d0d1a';
+  paramCtx.fillRect(0, 0, PW, PH);
+
+  // Draw region blobs
+  for (const r of PATTERN_REGIONS) {
+    const [cx, cy] = paramToPixel(r.f, r.k);
+    const grad = paramCtx.createRadialGradient(cx, cy, 0, cx, cy, 60);
+    grad.addColorStop(0, regionColors[r.name]);
+    grad.addColorStop(1, 'transparent');
+    paramCtx.fillStyle = grad;
+    paramCtx.fillRect(0, 0, PW, PH);
+    // label
+    paramCtx.fillStyle = '#999';
+    paramCtx.font = '11px sans-serif';
+    paramCtx.textAlign = 'center';
+    paramCtx.fillText(r.name, cx, cy + 4);
+  }
+
+  // Axes labels
+  paramCtx.fillStyle = '#555';
+  paramCtx.font = '10px sans-serif';
+  paramCtx.textAlign = 'left';
+  paramCtx.fillText('F \u2192', 4, PH - 4);
+  paramCtx.save();
+  paramCtx.translate(12, PH - 8);
+  paramCtx.rotate(-Math.PI / 2);
+  paramCtx.fillText('K \u2192', 0, 0);
+  paramCtx.restore();
+
+  // Tour path
+  if (tourActive || true) {
+    paramCtx.beginPath();
+    paramCtx.setLineDash([4, 4]);
+    paramCtx.strokeStyle = 'rgba(255,255,255,0.2)';
+    for (let i = 0; i < TOUR_PATH.length; i++) {
+      const [px, py] = paramToPixel(TOUR_PATH[i].f, TOUR_PATH[i].k);
+      if (i === 0) paramCtx.moveTo(px, py);
+      else paramCtx.lineTo(px, py);
+    }
+    paramCtx.stroke();
+    paramCtx.setLineDash([]);
+  }
+
+  // Current position crosshair
+  const [cx, cy] = paramToPixel(F, K);
+  paramCtx.beginPath();
+  paramCtx.arc(cx, cy, 6, 0, Math.PI * 2);
+  paramCtx.strokeStyle = '#fff';
+  paramCtx.lineWidth = 2;
+  paramCtx.stroke();
+  paramCtx.beginPath();
+  paramCtx.moveTo(cx - 10, cy); paramCtx.lineTo(cx + 10, cy);
+  paramCtx.moveTo(cx, cy - 10); paramCtx.lineTo(cx, cy + 10);
+  paramCtx.strokeStyle = 'rgba(255,255,255,0.5)';
+  paramCtx.lineWidth = 1;
+  paramCtx.stroke();
+
+  // Tour moving dot
+  if (tourActive) {
+    const [tx, ty] = paramToPixel(F, K);
+    paramCtx.beginPath();
+    paramCtx.arc(tx, ty, 4, 0, Math.PI * 2);
+    paramCtx.fillStyle = '#ffcc00';
+    paramCtx.fill();
+  }
+}
+
+paramCanvas.addEventListener('click', e => {
+  const rect = paramCanvas.getBoundingClientRect();
+  const px = (e.clientX - rect.left) * (PW / rect.width);
+  const py = (e.clientY - rect.top) * (PH / rect.height);
+  const [f, k] = pixelToParam(px, py);
+  setFK(
+    Math.max(F_MIN, Math.min(F_MAX, f)),
+    Math.max(K_MIN, Math.min(K_MAX, k)),
+    false
+  );
+});
+
+// ============================================================
+//  PARAMETER SPACE TOUR
+// ============================================================
+const TOUR_PATH = [
+  { f: 0.035, k: 0.065, label: 'Spots' },
+  { f: 0.025, k: 0.060, label: 'Stripes' },
+  { f: 0.029, k: 0.057, label: 'Labyrinth' },
+  { f: 0.055, k: 0.062, label: 'Coral' },
+  { f: 0.014, k: 0.047, label: 'Spirals' },
+  { f: 0.039, k: 0.058, label: 'Holes' },
+];
+let tourActive = false;
+let tourT = 0;           // 0 to TOUR_PATH.length - 1
+const tourSpeed = 0.0008; // per frame
+
+const btnTour = document.getElementById('btn-tour');
+const btnStopTour = document.getElementById('btn-stop-tour');
+btnTour.addEventListener('click', () => {
+  tourActive = true;
+  tourT = 0;
+  btnTour.style.display = 'none';
+  btnStopTour.style.display = '';
+  if (!running) { running = true; document.getElementById('btn-play').textContent = 'Pause'; }
+});
+btnStopTour.addEventListener('click', () => {
+  tourActive = false;
+  btnTour.style.display = '';
+  btnStopTour.style.display = 'none';
+});
+
+function updateTour() {
+  if (!tourActive) return;
+  tourT += tourSpeed;
+  if (tourT >= TOUR_PATH.length - 1) {
+    tourT = TOUR_PATH.length - 1;
+    tourActive = false;
+    btnTour.style.display = '';
+    btnStopTour.style.display = 'none';
+  }
+  const i = Math.floor(tourT);
+  const frac = tourT - i;
+  const a = TOUR_PATH[i];
+  const b = TOUR_PATH[Math.min(i + 1, TOUR_PATH.length - 1)];
+  const f = lerp(a.f, b.f, frac);
+  const k = lerp(a.k, b.k, frac);
+  F = f; K = k;
+  fSlider.value = f; kSlider.value = k;
+  fVal.textContent = f.toFixed(3);
+  kVal.textContent = k.toFixed(3);
+  updateInfo();
+  drawParamSpace();
+}
+
+// ============================================================
+//  INIT
+// ============================================================
+initGrid();
+drawParamSpace();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

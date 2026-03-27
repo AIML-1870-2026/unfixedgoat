@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Star Wars Hyperspace Starfield</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=News+Cycle:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #000000;
+            font-family: 'News Cycle', sans-serif;
+            color: #ffffff;
+        }
+        canvas {
+            display: block;
+            background: #000000;
+        }
+        #cockpitOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+            object-fit: cover;
+        }
+        #controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #4a9eff;
+            min-width: 250px;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+            opacity: 1;
+            visibility: visible;
+            z-index: 15;
+        }
+        #controls.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+        #toggleButton {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid #4a9eff;
+            color: #4a9eff;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s ease, left 0.3s ease;
+            z-index: 20;
+        }
+        #toggleButton:hover {
+            background: rgba(74, 158, 255, 0.2);
+        }
+        #toggleButton.shifted {
+            left: 310px;
+        }
+        #hyperdriveHint {
+            position: absolute;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(74, 158, 255, 0.4);
+            color: rgba(74, 158, 255, 0.8);
+            padding: 12px 24px;
+            border-radius: 5px;
+            font-family: 'News Cycle', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            pointer-events: none;
+            animation: pulse 2s ease-in-out infinite;
+            z-index: 15;
+        }
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 0.6;
+            }
+            50% {
+                opacity: 1;
+            }
+        }
+        .control-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 12px;
+            color: #4a9eff;
+        }
+        input[type="range"] {
+            width: 100%;
+            cursor: pointer;
+        }
+        .value-display {
+            display: inline-block;
+            float: right;
+            color: #ffffff;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="starfield"></canvas>
+
+    <img id="cockpitOverlay" src="tiefighter.png" alt="TIE Fighter Cockpit">
+
+    <div id="hyperdriveHint">Press SPACE for Hyperdrive | Press B to Shoot</div>
+
+    <button id="toggleButton">Hide Controls</button>
+
+    <div id="controls">
+        <div class="control-group">
+            <label>
+                Trail Length: <span class="value-display" id="trailLengthValue">150</span>
+            </label>
+            <input type="range" id="trailLength" min="50" max="300" value="150" step="10">
+        </div>
+
+        <div class="control-group">
+            <label>
+                Star Count: <span class="value-display" id="starCountValue">500</span>
+            </label>
+            <input type="range" id="starCount" min="100" max="1000" value="500" step="50">
+        </div>
+
+        <div class="control-group">
+            <label>
+                Star Speed: <span class="value-display" id="starSpeedValue">8</span>
+            </label>
+            <input type="range" id="starSpeed" min="1" max="20" value="8" step="1">
+        </div>
+    </div>
+
+    <script src="starfield.js"></script>
+</body>
+</html>

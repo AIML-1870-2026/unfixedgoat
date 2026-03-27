@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stage of Light — RGB Studio</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Rajdhani:wght@400;600&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #0d0015;
+  color: #e0d0f0;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Scanline overlay */
+body::after {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.08) 2px,
+    rgba(0,0,0,0.08) 4px
+  );
+  animation: scanlines 8s linear infinite;
+}
+
+@keyframes scanlines {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(4px); }
+}
+
+header {
+  text-align: center;
+  padding: 40px 20px 20px;
+}
+
+header h1 {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  font-size: clamp(1.5rem, 5vw, 3rem);
+  text-transform: uppercase;
+  letter-spacing: 4px;
+  background: linear-gradient(90deg, #ff0055, #ff00aa, #aa00ff, #00aaff, #00ff88);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 0 20px rgba(255,0,170,0.5));
+}
+
+header p {
+  font-family: 'Share Tech Mono', monospace;
+  color: #9966cc;
+  margin-top: 8px;
+  font-size: 0.9rem;
+  letter-spacing: 2px;
+}
+
+.section {
+  max-width: 900px;
+  margin: 30px auto;
+  padding: 0 20px;
+}
+
+.section-title {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  font-size: 1.3rem;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  color: #cc66ff;
+  margin-bottom: 20px;
+  text-shadow: 0 0 10px rgba(204,102,255,0.5);
+}
+
+/* Canvas */
+.canvas-wrap {
+  position: relative;
+  width: 100%;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid #4a0080;
+  box-shadow: 0 0 30px rgba(100,0,200,0.3);
+}
+
+#laserCanvas {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Controls */
+.controls {
+  background: #1a0030;
+  border: 1px solid #4a0080;
+  border-radius: 4px;
+  padding: 24px;
+  margin-top: 20px;
+}
+
+.channel-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.channel-row:last-of-type { margin-bottom: 0; }
+
+.channel-label {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  font-size: 1rem;
+  width: 30px;
+  text-align: center;
+}
+
+.channel-label.red { color: #ff3333; text-shadow: 0 0 8px rgba(255,50,50,0.6); }
+.channel-label.green { color: #33ff33; text-shadow: 0 0 8px rgba(50,255,50,0.6); }
+.channel-label.blue { color: #3388ff; text-shadow: 0 0 8px rgba(50,130,255,0.6); }
+
+/* Range slider styling */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  outline: none;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid #fff;
+}
+
+input[type="range"].red-slider {
+  background: linear-gradient(90deg, #1a0000, #ff3333);
+}
+input[type="range"].red-slider::-webkit-slider-thumb {
+  background: #ff3333;
+  box-shadow: 0 0 12px rgba(255,50,50,0.8);
+}
+
+input[type="range"].green-slider {
+  background: linear-gradient(90deg, #001a00, #33ff33);
+}
+input[type="range"].green-slider::-webkit-slider-thumb {
+  background: #33ff33;
+  box-shadow: 0 0 12px rgba(50,255,50,0.8);
+}
+
+input[type="range"].blue-slider {
+  background: linear-gradient(90deg, #00001a, #3388ff);
+}
+input[type="range"].blue-slider::-webkit-slider-thumb {
+  background: #3388ff;
+  box-shadow: 0 0 12px rgba(50,130,255,0.8);
+}
+
+/* Firefox slider thumb */
+input[type="range"]::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid #fff;
+}
+input[type="range"].red-slider::-moz-range-thumb {
+  background: #ff3333;
+  box-shadow: 0 0 12px rgba(255,50,50,0.8);
+}
+input[type="range"].green-slider::-moz-range-thumb {
+  background: #33ff33;
+  box-shadow: 0 0 12px rgba(50,255,50,0.8);
+}
+input[type="range"].blue-slider::-moz-range-thumb {
+  background: #3388ff;
+  box-shadow: 0 0 12px rgba(50,130,255,0.8);
+}
+
+input[type="number"] {
+  width: 65px;
+  background: #0d0015;
+  border: 1px solid #4a0080;
+  border-radius: 4px;
+  color: #e0d0f0;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 1rem;
+  padding: 6px 8px;
+  text-align: center;
+  outline: none;
+}
+
+input[type="number"]:focus {
+  border-color: #cc66ff;
+  box-shadow: 0 0 8px rgba(204,102,255,0.4);
+}
+
+/* Mixed color swatch */
+.swatch-display {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.mixed-swatch {
+  width: 160px;
+  height: 100px;
+  border-radius: 4px;
+  border: 1px solid #4a0080;
+  transition: background-color 200ms ease-out, box-shadow 200ms ease-out;
+}
+
+.color-codes {
+  display: flex;
+  gap: 20px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 1rem;
+}
+
+.color-code {
+  cursor: pointer;
+  padding: 4px 12px;
+  border-radius: 4px;
+  background: #0d0015;
+  border: 1px solid #4a0080;
+  transition: border-color 0.2s;
+  position: relative;
+}
+
+.color-code:hover {
+  border-color: #cc66ff;
+}
+
+.copied-tooltip {
+  position: absolute;
+  top: -28px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #cc66ff;
+  color: #0d0015;
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.copied-tooltip.show { opacity: 1; }
+
+/* Section 2: Palette */
+.harmony-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.harmony-tab {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 10px 18px;
+  border-radius: 4px;
+  border: 1px solid #4a0080;
+  background: #1a0030;
+  color: #9966cc;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.harmony-tab:hover {
+  border-color: #cc66ff;
+  color: #cc66ff;
+}
+
+.harmony-tab.active {
+  color: #0d0015;
+  border-color: transparent;
+}
+
+.palette-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.palette-swatch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  opacity: 0;
+  transform: translateY(15px);
+  animation: swatchIn 0.3s ease-out forwards;
+}
+
+@keyframes swatchIn {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.palette-color {
+  width: 100px;
+  height: 100px;
+  border-radius: 4px;
+  border: 1px solid #4a0080;
+  transition: box-shadow 0.2s;
+}
+
+.palette-hex {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.85rem;
+  color: #9966cc;
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 4px;
+  position: relative;
+  transition: color 0.2s;
+}
+
+.palette-hex:hover { color: #cc66ff; }
+
+/* Contrast Checker */
+.checker-card {
+  background: #1a0030;
+  border: 1px solid #4a0080;
+  border-radius: 4px;
+  padding: 24px;
+  margin-top: 30px;
+}
+
+.checker-title {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: #cc66ff;
+  margin-bottom: 16px;
+  text-shadow: 0 0 8px rgba(204,102,255,0.4);
+}
+
+.checker-pickers {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.picker-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.picker-group label {
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  color: #9966cc;
+}
+
+.picker-group input[type="color"] {
+  width: 50px;
+  height: 36px;
+  border: 1px solid #4a0080;
+  border-radius: 4px;
+  background: #0d0015;
+  cursor: pointer;
+  padding: 2px;
+}
+
+.contrast-result {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.contrast-ratio {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 1.5rem;
+  color: #e0d0f0;
+}
+
+.badge {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.badge.pass {
+  background: #00cc66;
+  color: #001a0d;
+}
+
+.badge.fail {
+  background: #cc3344;
+  color: #1a0008;
+}
+
+/* Color Blindness Simulator */
+.blindness-toggles {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.blindness-btn {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 8px 14px;
+  border-radius: 4px;
+  border: 1px solid #4a0080;
+  background: #1a0030;
+  color: #9966cc;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.blindness-btn:hover { border-color: #cc66ff; color: #cc66ff; }
+
+.blindness-btn.active {
+  background: #cc66ff;
+  color: #0d0015;
+  border-color: #cc66ff;
+}
+
+.sim-label {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.8rem;
+  color: #ff00aa;
+  margin-top: 10px;
+  min-height: 1.2em;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .channel-row { flex-wrap: wrap; }
+  .color-codes { flex-direction: column; align-items: center; gap: 8px; }
+  .palette-color { width: 70px; height: 70px; }
+  .harmony-tabs { justify-content: center; }
+  .checker-pickers { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Stage of Light</h1>
+  <p>RGB Color Studio</p>
+</header>
+
+<!-- SECTION 1: COLOR EXPLORER -->
+<section class="section">
+  <h2 class="section-title">Color Explorer</h2>
+  <div class="canvas-wrap">
+    <canvas id="laserCanvas" width="900" height="450"></canvas>
+  </div>
+
+  <div class="controls">
+    <div class="channel-row">
+      <span class="channel-label red">R</span>
+      <input type="range" class="red-slider" id="rSlider" min="0" max="255" value="128">
+      <input type="number" id="rNum" min="0" max="255" value="128">
+    </div>
+    <div class="channel-row">
+      <span class="channel-label green">G</span>
+      <input type="range" class="green-slider" id="gSlider" min="0" max="255" value="64">
+      <input type="number" id="gNum" min="0" max="255" value="64">
+    </div>
+    <div class="channel-row">
+      <span class="channel-label blue">B</span>
+      <input type="range" class="blue-slider" id="bSlider" min="0" max="255" value="200">
+      <input type="number" id="bNum" min="0" max="255" value="200">
+    </div>
+
+    <div class="swatch-display">
+      <div class="mixed-swatch" id="mixedSwatch"></div>
+      <div class="color-codes">
+        <span class="color-code" id="hexCode" onclick="copyText(this)">
+          #8040C8
+          <span class="copied-tooltip" id="hexTooltip">Copied!</span>
+        </span>
+        <span class="color-code" id="rgbCode" onclick="copyText(this)">
+          rgb(128, 64, 200)
+          <span class="copied-tooltip" id="rgbTooltip">Copied!</span>
+        </span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 2: PALETTE GENERATOR -->
+<section class="section" style="padding-bottom: 60px;">
+  <h2 class="section-title">Palette Generator</h2>
+
+  <div class="harmony-tabs" id="harmonyTabs">
+    <button class="harmony-tab active" data-harmony="complementary">Complementary</button>
+    <button class="harmony-tab" data-harmony="analogous">Analogous</button>
+    <button class="harmony-tab" data-harmony="triadic">Triadic</button>
+    <button class="harmony-tab" data-harmony="tetradic">Tetradic</button>
+  </div>
+
+  <div class="palette-row" id="paletteRow"></div>
+
+  <!-- Contrast Checker -->
+  <div class="checker-card">
+    <div class="checker-title">WCAG Contrast Checker</div>
+    <div class="checker-pickers">
+      <div class="picker-group">
+        <label>Foreground</label>
+        <input type="color" id="fgPicker" value="#ffffff">
+      </div>
+      <div class="picker-group">
+        <label>Background</label>
+        <input type="color" id="bgPicker" value="#0d0015">
+      </div>
+    </div>
+    <div class="contrast-result" id="contrastResult"></div>
+  </div>
+
+  <!-- Color Blindness Simulator -->
+  <div class="checker-card">
+    <div class="checker-title">Color Blindness Simulator</div>
+    <div class="blindness-toggles" id="blindnessToggles">
+      <button class="blindness-btn active" data-mode="normal">Normal</button>
+      <button class="blindness-btn" data-mode="protanopia">Protanopia</button>
+      <button class="blindness-btn" data-mode="deuteranopia">Deuteranopia</button>
+      <button class="blindness-btn" data-mode="tritanopia">Tritanopia</button>
+    </div>
+    <div class="sim-label" id="simLabel"></div>
+  </div>
+</section>
+
+<script>
+// ─── State ───
+const state = { r: 128, g: 64, b: 200 };
+let activeHarmony = 'complementary';
+let blindnessMode = 'normal';
+
+// ─── DOM refs ───
+const rSlider = document.getElementById('rSlider');
+const gSlider = document.getElementById('gSlider');
+const bSlider = document.getElementById('bSlider');
+const rNum = document.getElementById('rNum');
+const gNum = document.getElementById('gNum');
+const bNum = document.getElementById('bNum');
+const mixedSwatch = document.getElementById('mixedSwatch');
+const hexCode = document.getElementById('hexCode');
+const rgbCode = document.getElementById('rgbCode');
+const paletteRow = document.getElementById('paletteRow');
+const canvas = document.getElementById('laserCanvas');
+const ctx = canvas.getContext('2d');
+
+// ─── Color Utilities ───
+function clamp(v, lo = 0, hi = 255) { return Math.max(lo, Math.min(hi, Math.round(v))); }
+
+function toHex(r, g, b) {
+  return '#' + [r, g, b].map(c => clamp(c).toString(16).padStart(2, '0')).join('');
+}
+
+function rgbToHsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h, s, l = (max + min) / 2;
+  if (max === min) { h = s = 0; }
+  else {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+      case g: h = ((b - r) / d + 2) / 6; break;
+      case b: h = ((r - g) / d + 4) / 6; break;
+    }
+  }
+  return [h * 360, s * 100, l * 100];
+}
+
+function hslToRgb(h, s, l) {
+  h = ((h % 360) + 360) % 360;
+  s /= 100; l /= 100;
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+  const m = l - c / 2;
+  let r, g, b;
+  if (h < 60)       { r = c; g = x; b = 0; }
+  else if (h < 120) { r = x; g = c; b = 0; }
+  else if (h < 180) { r = 0; g = c; b = x; }
+  else if (h < 240) { r = 0; g = x; b = c; }
+  else if (h < 300) { r = x; g = 0; b = c; }
+  else              { r = c; g = 0; b = x; }
+  return [clamp((r + m) * 255), clamp((g + m) * 255), clamp((b + m) * 255)];
+}
+
+// ─── Harmony ───
+function getHarmonyColors(r, g, b, type) {
+  const [h, s, l] = rgbToHsl(r, g, b);
+  const base = [r, g, b];
+  const offsets = {
+    complementary: [180],
+    analogous: [-30, 30],
+    triadic: [120, 240],
+    tetradic: [90, 180, 270]
+  };
+  const results = [base];
+  for (const off of offsets[type]) {
+    results.push(hslToRgb(h + off, s, l));
+  }
+  return results;
+}
+
+// ─── Color Blindness Matrices ───
+const cbMatrices = {
+  normal: null,
+  protanopia: [
+    [0.567, 0.433, 0.000],
+    [0.558, 0.442, 0.000],
+    [0.000, 0.242, 0.758]
+  ],
+  deuteranopia: [
+    [0.625, 0.375, 0.000],
+    [0.700, 0.300, 0.000],
+    [0.000, 0.300, 0.700]
+  ],
+  tritanopia: [
+    [0.950, 0.050, 0.000],
+    [0.000, 0.433, 0.567],
+    [0.000, 0.475, 0.525]
+  ]
+};
+
+function simulateCB(r, g, b, mode) {
+  if (mode === 'normal' || !cbMatrices[mode]) return [r, g, b];
+  const m = cbMatrices[mode];
+  return [
+    clamp(m[0][0] * r + m[0][1] * g + m[0][2] * b),
+    clamp(m[1][0] * r + m[1][1] * g + m[1][2] * b),
+    clamp(m[2][0] * r + m[2][1] * g + m[2][2] * b)
+  ];
+}
+
+// ─── WCAG ───
+function linearize(c) {
+  c /= 255;
+  return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+}
+
+function luminance(r, g, b) {
+  return 0.2126 * linearize(r) + 0.7152 * linearize(g) + 0.0722 * linearize(b);
+}
+
+function contrastRatio(rgb1, rgb2) {
+  const l1 = luminance(...rgb1);
+  const l2 = luminance(...rgb2);
+  const lighter = Math.max(l1, l2);
+  const darker = Math.min(l1, l2);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function hexToRgb(hex) {
+  const m = hex.match(/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+  return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : [0, 0, 0];
+}
+
+// ─── Copy ───
+function copyText(el) {
+  const text = el.childNodes[0].textContent.trim();
+  navigator.clipboard.writeText(text);
+  const tip = el.querySelector('.copied-tooltip');
+  if (tip) {
+    tip.classList.add('show');
+    setTimeout(() => tip.classList.remove('show'), 1200);
+  }
+}
+
+function copyHex(hex, el) {
+  navigator.clipboard.writeText(hex);
+  const tip = document.createElement('span');
+  tip.className = 'copied-tooltip show';
+  tip.textContent = 'Copied!';
+  tip.style.cssText = 'position:absolute;top:-24px;left:50%;transform:translateX(-50%);background:#cc66ff;color:#0d0015;font-size:0.7rem;padding:2px 6px;border-radius:4px;pointer-events:none;';
+  el.style.position = 'relative';
+  el.appendChild(tip);
+  setTimeout(() => tip.remove(), 1200);
+}
+
+// ─── Update UI ───
+function update() {
+  const { r, g, b } = state;
+  rSlider.value = r; gSlider.value = g; bSlider.value = b;
+  rNum.value = r; gNum.value = g; bNum.value = b;
+
+  const [dr, dg, db] = simulateCB(r, g, b, blindnessMode);
+  const hex = toHex(dr, dg, db);
+  mixedSwatch.style.backgroundColor = hex;
+  mixedSwatch.style.boxShadow = `0 0 30px ${hex}, inset 0 0 20px rgba(255,255,255,0.05)`;
+
+  hexCode.childNodes[0].textContent = toHex(r, g, b) + ' ';
+  rgbCode.childNodes[0].textContent = `rgb(${r}, ${g}, ${b}) `;
+
+  updatePalette();
+  updateContrast();
+
+  // Update active harmony tab accent color
+  document.querySelectorAll('.harmony-tab.active').forEach(tab => {
+    tab.style.background = toHex(r, g, b);
+    // Choose readable text color
+    const lum = luminance(r, g, b);
+    tab.style.color = lum > 0.3 ? '#0d0015' : '#e0d0f0';
+  });
+}
+
+function updatePalette() {
+  const colors = getHarmonyColors(state.r, state.g, state.b, activeHarmony);
+  paletteRow.innerHTML = '';
+  colors.forEach((rgb, i) => {
+    const [dr, dg, db] = simulateCB(...rgb, blindnessMode);
+    const displayHex = toHex(dr, dg, db);
+    const realHex = toHex(...rgb);
+
+    const swatch = document.createElement('div');
+    swatch.className = 'palette-swatch';
+    swatch.style.animationDelay = `${i * 80}ms`;
+
+    const colorBlock = document.createElement('div');
+    colorBlock.className = 'palette-color';
+    colorBlock.style.backgroundColor = displayHex;
+    colorBlock.style.boxShadow = `0 0 15px ${displayHex}44, inset 0 0 10px rgba(255,255,255,0.04)`;
+
+    const hexLabel = document.createElement('div');
+    hexLabel.className = 'palette-hex';
+    hexLabel.textContent = realHex;
+    hexLabel.onclick = () => copyHex(realHex, hexLabel);
+
+    swatch.appendChild(colorBlock);
+    swatch.appendChild(hexLabel);
+    paletteRow.appendChild(swatch);
+  });
+}
+
+function updateContrast() {
+  const fg = hexToRgb(document.getElementById('fgPicker').value);
+  const bg = hexToRgb(document.getElementById('bgPicker').value);
+  const ratio = contrastRatio(fg, bg);
+  const r = ratio.toFixed(2);
+
+  const badges = [
+    ['AA Normal', ratio >= 4.5],
+    ['AA Large', ratio >= 3],
+    ['AAA Normal', ratio >= 7],
+    ['AAA Large', ratio >= 4.5]
+  ];
+
+  document.getElementById('contrastResult').innerHTML =
+    `<span class="contrast-ratio">${r}:1</span>` +
+    badges.map(([label, pass]) =>
+      `<span class="badge ${pass ? 'pass' : 'fail'}">${label}: ${pass ? 'Pass' : 'Fail'}</span>`
+    ).join('');
+}
+
+// ─── Events ───
+function bindSlider(slider, numInput, channel) {
+  slider.addEventListener('input', () => {
+    state[channel] = parseInt(slider.value);
+    update();
+  });
+  numInput.addEventListener('input', () => {
+    let v = parseInt(numInput.value);
+    if (isNaN(v)) v = 0;
+    state[channel] = clamp(v);
+    update();
+  });
+  numInput.addEventListener('blur', () => {
+    numInput.value = state[channel];
+  });
+}
+
+bindSlider(rSlider, rNum, 'r');
+bindSlider(gSlider, gNum, 'g');
+bindSlider(bSlider, bNum, 'b');
+
+document.querySelectorAll('.harmony-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.harmony-tab').forEach(t => {
+      t.classList.remove('active');
+      t.style.background = '';
+      t.style.color = '';
+    });
+    tab.classList.add('active');
+    activeHarmony = tab.dataset.harmony;
+    update();
+  });
+});
+
+document.getElementById('fgPicker').addEventListener('input', updateContrast);
+document.getElementById('bgPicker').addEventListener('input', updateContrast);
+
+document.querySelectorAll('.blindness-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.blindness-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    blindnessMode = btn.dataset.mode;
+    document.getElementById('simLabel').textContent =
+      blindnessMode === 'normal' ? '' : `Simulating: ${blindnessMode}`;
+    update();
+  });
+});
+
+// ─── Canvas Rendering ───
+let animFrame = 0;
+
+function resizeCanvas() {
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width * window.devicePixelRatio;
+  canvas.height = (rect.width * 0.5) * window.devicePixelRatio;
+  canvas.style.height = (rect.width * 0.5) + 'px';
+}
+
+function drawGrid() {
+  const w = canvas.width, h = canvas.height;
+  const horizon = h * 0.45;
+  const vanishX = w / 2;
+
+  // Sky gradient
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, horizon);
+  skyGrad.addColorStop(0, '#0d0015');
+  skyGrad.addColorStop(1, '#1a0030');
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, w, horizon);
+
+  // Ground gradient
+  const groundGrad = ctx.createLinearGradient(0, horizon, 0, h);
+  groundGrad.addColorStop(0, '#1a0030');
+  groundGrad.addColorStop(1, '#0d0015');
+  ctx.fillStyle = groundGrad;
+  ctx.fillRect(0, horizon, w, h - horizon);
+
+  // Horizon glow
+  ctx.save();
+  const horizGlow = ctx.createRadialGradient(vanishX, horizon, 0, vanishX, horizon, w * 0.5);
+  horizGlow.addColorStop(0, 'rgba(255,0,170,0.25)');
+  horizGlow.addColorStop(0.5, 'rgba(255,0,170,0.05)');
+  horizGlow.addColorStop(1, 'transparent');
+  ctx.fillStyle = horizGlow;
+  ctx.fillRect(0, horizon - h * 0.15, w, h * 0.3);
+  ctx.restore();
+
+  // Horizontal grid lines (perspective)
+  ctx.strokeStyle = '#3d0066';
+  ctx.lineWidth = 1;
+  for (let i = 1; i <= 15; i++) {
+    const t = i / 15;
+    const y = horizon + (h - horizon) * (1 - Math.pow(1 - t, 2.5));
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(w, y);
+    ctx.globalAlpha = 0.3 + t * 0.4;
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // Vertical grid lines (perspective)
+  const numVerticals = 20;
+  for (let i = -numVerticals; i <= numVerticals; i++) {
+    const xBottom = vanishX + (i / numVerticals) * w * 0.9;
+    ctx.beginPath();
+    ctx.moveTo(vanishX, horizon);
+    ctx.lineTo(xBottom, h);
+    ctx.strokeStyle = '#3d0066';
+    ctx.globalAlpha = 0.3;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // Horizon line
+  ctx.beginPath();
+  ctx.moveTo(0, horizon);
+  ctx.lineTo(w, horizon);
+  ctx.strokeStyle = '#ff00aa';
+  ctx.lineWidth = 2;
+  ctx.globalAlpha = 0.6;
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+}
+
+function drawBeam(x1, y1, x2, y2, color, intensity, time) {
+  if (intensity < 1) return;
+  const flicker = 0.85 + 0.15 * Math.sin(time * 0.002 + x1);
+  const alpha = (intensity / 255) * flicker;
+
+  // Outer glow
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 12;
+  ctx.globalAlpha = alpha * 0.15;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+
+  // Mid glow
+  ctx.lineWidth = 5;
+  ctx.globalAlpha = alpha * 0.4;
+  ctx.stroke();
+
+  // Core
+  ctx.lineWidth = 2;
+  ctx.globalAlpha = alpha * 0.9;
+  ctx.strokeStyle = '#fff';
+  ctx.stroke();
+
+  ctx.lineWidth = 1.5;
+  ctx.globalAlpha = alpha * 0.7;
+  ctx.strokeStyle = color;
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawOrb(cx, cy, time) {
+  const { r, g, b } = state;
+  const pulse = 1 + 0.08 * Math.sin(time * 0.003);
+  const radius = 25 * pulse;
+
+  // Glow layers
+  for (let i = 4; i >= 0; i--) {
+    const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius * (1 + i * 0.8));
+    const col = `rgba(${clamp(r)},${clamp(g)},${clamp(b)},`;
+    grad.addColorStop(0, col + (0.8 / (i + 1)) + ')');
+    grad.addColorStop(0.5, col + (0.3 / (i + 1)) + ')');
+    grad.addColorStop(1, 'transparent');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius * (1 + i * 0.8), 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // White core
+  const coreGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius * 0.4);
+  coreGrad.addColorStop(0, 'rgba(255,255,255,0.9)');
+  coreGrad.addColorStop(1, `rgba(${clamp(r)},${clamp(g)},${clamp(b)},0.6)`);
+  ctx.fillStyle = coreGrad;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius * 0.4, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawScanlines(time) {
+  const w = canvas.width, h = canvas.height;
+  const offset = (time * 0.03) % 6;
+  ctx.fillStyle = 'rgba(0,0,0,0.04)';
+  for (let y = offset; y < h; y += 6) {
+    ctx.fillRect(0, y, w, 2);
+  }
+}
+
+function render(time) {
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  drawGrid();
+
+  const cx = w / 2;
+  const cy = h * 0.45;
+
+  // Beam origins
+  const rOrigin = [0, h * 0.1];
+  const gOrigin = [w, h * 0.1];
+  const bOrigin = [w / 2, h];
+
+  drawBeam(rOrigin[0], rOrigin[1], cx, cy, '#ff3333', state.r, time);
+  drawBeam(gOrigin[0], gOrigin[1], cx, cy, '#33ff33', state.g, time);
+  drawBeam(bOrigin[0], bOrigin[1], cx, cy, '#3388ff', state.b, time);
+
+  drawOrb(cx, cy, time);
+  drawScanlines(time);
+
+  requestAnimationFrame(render);
+}
+
+// ─── Init ───
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+update();
+requestAnimationFrame(render);
+</script>
+</body>
+</html>
