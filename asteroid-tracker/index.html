@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Asteroid Close Approach Tracker</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+
+    body {
+      background: #050510;
+      overflow: hidden;
+      font-family: 'Inter', system-ui, sans-serif;
+      color: white;
+    }
+
+    canvas#three-canvas {
+      position: fixed;
+      inset: 0;
+      display: block;
+    }
+
+    /* Loading */
+    #loading {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #050510;
+      z-index: 100;
+      transition: opacity 0.6s ease;
+    }
+    #loading.hidden { opacity: 0; pointer-events: none; }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 2px solid rgba(0,207,255,0.1);
+      border-top-color: #00cfff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-text {
+      margin-top: 16px;
+      font-size: 12px;
+      letter-spacing: 0.15em;
+      color: rgba(255,255,255,0.4);
+    }
+
+    /* Error */
+    #error-state {
+      position: fixed;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #050510;
+      z-index: 100;
+    }
+    #error-state.visible { display: flex; }
+
+    .error-text {
+      font-size: 15px;
+      color: rgba(255,255,255,0.6);
+      margin-bottom: 20px;
+      text-align: center;
+      max-width: 380px;
+      line-height: 1.6;
+    }
+    .retry-btn {
+      padding: 9px 22px;
+      background: transparent;
+      border: 1px solid #00cfff;
+      color: #00cfff;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: background 0.2s;
+    }
+    .retry-btn:hover { background: rgba(0,207,255,0.1); }
+
+    /* Object count */
+    #object-count {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      font-size: 12px;
+      color: rgba(255,255,255,0.4);
+      letter-spacing: 0.06em;
+      pointer-events: none;
+    }
+
+    /* Audio toggle */
+    #audio-toggle {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      width: 36px;
+      height: 36px;
+      background: rgba(255,255,255,0.05);
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+      z-index: 30;
+    }
+    #audio-toggle:hover { background: rgba(255,255,255,0.1); }
+
+    /* Timeline toggle */
+    #timeline-toggle {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 7px 16px;
+      background: rgba(255,255,255,0.05);
+      border: none;
+      border-radius: 20px;
+      color: rgba(255,255,255,0.5);
+      font-size: 12px;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      transition: all 0.2s;
+      z-index: 30;
+    }
+    #timeline-toggle:hover { background: rgba(255,255,255,0.1); color: white; }
+
+    /* Timeline panel */
+    #timeline-panel {
+      position: fixed;
+      top: 56px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-130%);
+      width: min(860px, 92vw);
+      background: rgba(5,5,16,0.88);
+      backdrop-filter: blur(14px);
+      border-radius: 10px;
+      padding: 14px 20px;
+      transition: transform 0.3s ease;
+      z-index: 20;
+    }
+    #timeline-panel.open { transform: translateX(-50%) translateY(0); }
+    #timeline-canvas { width: 100%; height: 80px; cursor: crosshair; display: block; }
+
+    /* Side panel */
+    #side-panel {
+      position: fixed;
+      top: 0;
+      right: -400px;
+      width: 360px;
+      height: 100vh;
+      background: rgba(5,5,16,0.78);
+      backdrop-filter: blur(18px);
+      padding: 36px 28px 28px;
+      transition: right 0.3s ease;
+      z-index: 25;
+      display: flex;
+      flex-direction: column;
+    }
+    #side-panel.open { right: 0; }
+
+    #panel-close {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.35);
+      font-size: 17px;
+      cursor: pointer;
+      padding: 4px 6px;
+      transition: color 0.2s;
+    }
+    #panel-close:hover { color: white; }
+
+    #panel-name {
+      font-size: 18px;
+      font-weight: 600;
+      line-height: 1.35;
+      margin-bottom: 10px;
+    }
+
+    #panel-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      padding: 4px 10px;
+      border-radius: 20px;
+      margin-bottom: 22px;
+    }
+    .badge-hazard { background: rgba(255,107,0,0.12); color: #ff6b00; border: 1px solid rgba(255,107,0,0.3); }
+    .badge-safe   { background: rgba(0,207,255,0.08); color: #00cfff; border: 1px solid rgba(0,207,255,0.2); }
+
+    .p-divider { height: 1px; background: rgba(255,255,255,0.06); margin: 14px 0; }
+
+    .p-row { margin-bottom: 14px; }
+    .p-label { font-size: 10px; color: rgba(255,255,255,0.3); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 3px; }
+    .p-val   { font-size: 15px; color: white; }
+    .p-sub   { font-size: 12px; color: rgba(255,255,255,0.35); margin-top: 2px; }
+
+    #panel-footnote {
+      margin-top: auto;
+      padding-top: 20px;
+      font-size: 11px;
+      color: rgba(255,255,255,0.18);
+    }
+
+    /* Scrubber */
+    #scrubber-wrap {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 10px 32px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      z-index: 10;
+      transition: padding-bottom 0.2s;
+    }
+    #scrubber-wrap:hover { padding-bottom: 20px; }
+
+    #scrubber-date {
+      text-align: center;
+      font-size: 13px;
+      color: rgba(255,255,255,0.5);
+      letter-spacing: 0.04em;
+    }
+
+    #scrubber-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .s-label { font-size: 11px; color: rgba(255,255,255,0.25); white-space: nowrap; }
+
+    #scrubber {
+      -webkit-appearance: none;
+      appearance: none;
+      flex: 1;
+      height: 2px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 1px;
+      outline: none;
+      cursor: pointer;
+      transition: height 0.2s;
+    }
+    #scrubber-wrap:hover #scrubber { height: 4px; }
+    #scrubber::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #00cfff;
+      cursor: pointer;
+    }
+
+    #play-btn {
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.4);
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+      letter-spacing: 0.05em;
+      transition: color 0.2s;
+    }
+    #play-btn:hover { color: white; }
+
+    /* Legend */
+    #legend {
+      position: fixed;
+      bottom: 80px;
+      left: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .legend-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: rgba(255,255,255,0.35); }
+    .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+    /* Mobile */
+    @media (max-width: 600px) {
+      #side-panel {
+        width: 100vw;
+        right: unset;
+        left: 0;
+        top: unset;
+        bottom: -100vh;
+        height: 72vh;
+        border-radius: 14px 14px 0 0;
+        transition: bottom 0.3s ease;
+      }
+      #side-panel.open { bottom: 0; right: unset; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <div class="loading-text">SCANNING NEAR-EARTH OBJECTS</div>
+</div>
+
+<div id="error-state">
+  <div class="error-text" id="error-text">Unable to load asteroid data. Check your connection and reload.</div>
+  <button class="retry-btn" onclick="location.reload()">Retry</button>
+</div>
+
+<canvas id="three-canvas"></canvas>
+
+<div id="object-count"></div>
+
+<button id="audio-toggle" title="Toggle audio">🔇</button>
+
+<button id="timeline-toggle">☄ Timeline</button>
+
+<div id="timeline-panel">
+  <canvas id="timeline-canvas"></canvas>
+</div>
+
+<div id="side-panel">
+  <button id="panel-close">✕</button>
+  <div id="panel-name"></div>
+  <div id="panel-badge"></div>
+
+  <div class="p-row">
+    <div class="p-label">Close Approach</div>
+    <div class="p-val" id="p-date"></div>
+  </div>
+  <div class="p-divider"></div>
+  <div class="p-row">
+    <div class="p-label">Miss Distance</div>
+    <div class="p-val" id="p-dist-km"></div>
+    <div class="p-sub" id="p-dist-ld"></div>
+  </div>
+  <div class="p-row">
+    <div class="p-label">Relative Velocity</div>
+    <div class="p-val" id="p-vel-kph"></div>
+    <div class="p-sub" id="p-vel-kps"></div>
+  </div>
+  <div class="p-row">
+    <div class="p-label">Estimated Diameter</div>
+    <div class="p-val" id="p-diam"></div>
+  </div>
+
+  <div id="panel-footnote">Observed by NASA · NeoWs API</div>
+</div>
+
+<div id="scrubber-wrap">
+  <div id="scrubber-date"></div>
+  <div id="scrubber-row">
+    <span class="s-label" id="s-start"></span>
+    <input type="range" id="scrubber" min="0" max="6" step="0.02" value="3">
+    <span class="s-label" id="s-end"></span>
+    <button id="play-btn">▶ Play</button>
+  </div>
+</div>
+
+<div id="legend">
+  <div class="legend-row">
+    <div class="legend-dot" style="background:#00cfff;box-shadow:0 0 5px #00cfff"></div>
+    Non-hazardous
+  </div>
+  <div class="legend-row">
+    <div class="legend-dot" style="background:#ff6b00;box-shadow:0 0 5px #ff6b00"></div>
+    Potentially hazardous
+  </div>
+</div>
+
+<!-- Three.js r128 — replace NASA_API_KEY below with your key from api.nasa.gov -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+// ============================================================
+// Asteroid Close Approach Tracker
+// NASA NeoWs API — api_key=DEMO_KEY (replace with your own)
+// ============================================================
+
+const NASA_API_KEY = 'DEMO_KEY';
+const EARTH_R = 1.0;
+
+// ---- Utilities ----
+
+function fmt(n, dec = 0) {
+  return Number(n).toLocaleString('en-US', { maximumFractionDigits: dec });
+}
+
+function fmtDate(str) {
+  return new Date(str + 'T00:00:00').toLocaleDateString('en-US', {
+    month: 'long', day: 'numeric', year: 'numeric'
+  });
+}
+
+function getRange() {
+  const now = new Date();
+  const start = now.toISOString().slice(0, 10);
+  const end   = new Date(now.getTime() + 6 * 86400000).toISOString().slice(0, 10);
+  return { start, end };
+}
+
+// ---- Renderer / Scene ----
+
+const canvas = document.getElementById('three-canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+
+const scene  = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 500);
+camera.position.set(0, 0, 3.6);
+
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping  = true;
+controls.dampingFactor  = 0.05;
+controls.minDistance    = 1.45;
+controls.maxDistance    = 9;
+controls.enablePan      = false;
+
+// Lighting
+const sunLight = new THREE.DirectionalLight(0xffffff, 2.2);
+sunLight.position.set(6, 3, 5);
+scene.add(sunLight);
+const fillLight = new THREE.DirectionalLight(0x445566, 0.6);
+fillLight.position.set(-5, -2, -4);
+scene.add(fillLight);
+scene.add(new THREE.AmbientLight(0x334455, 0.8));
+
+// ---- Starfield ----
+(function() {
+  const N = 4200, pos = new Float32Array(N * 3);
+  for (let i = 0; i < N; i++) {
+    const theta = Math.random() * Math.PI * 2;
+    const phi   = Math.acos(2 * Math.random() - 1);
+    const r     = 90 + Math.random() * 30;
+    pos[i*3]   = r * Math.sin(phi) * Math.cos(theta);
+    pos[i*3+1] = r * Math.sin(phi) * Math.sin(theta);
+    pos[i*3+2] = r * Math.cos(phi);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  scene.add(new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.11, sizeAttenuation: true })));
+})();
+
+// ---- Earth ----
+const earthGroup = new THREE.Group();
+scene.add(earthGroup);
+
+const tl = new THREE.TextureLoader();
+const earthMat = new THREE.MeshPhongMaterial({
+  specular:  new THREE.Color(0x111122),
+  shininess: 15,
+});
+
+// Load Blue Marble texture — if it fails the globe still renders via fallback color
+earthMat.color = new THREE.Color(0x1a3d5c);
+tl.load(
+  'https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg',
+  tex => { earthMat.map = tex; earthMat.needsUpdate = true; },
+  undefined,
+  () => console.warn('Earth texture failed to load — using fallback color')
+);
+
+const earthMesh = new THREE.Mesh(
+  new THREE.SphereGeometry(EARTH_R, 96, 96),
+  earthMat
+);
+earthGroup.add(earthMesh);
+
+const cloudMesh = new THREE.Mesh(
+  new THREE.SphereGeometry(EARTH_R * 1.006, 64, 64),
+  new THREE.MeshPhongMaterial({
+    color: 0xffffff, transparent: true, opacity: 0.22, depthWrite: false,
+  })
+);
+tl.load('https://unpkg.com/three-globe/example/img/earth-clouds.png',
+  tex => { cloudMesh.material.map = tex; cloudMesh.material.needsUpdate = true; }
+);
+earthGroup.add(cloudMesh);
+
+// ---- State ----
+let asteroids     = [];
+let orbMeshes     = [];   // { mesh, glowMesh, data }
+let scrubDay      = 3;
+let isPlaying     = false;
+let playTimer     = null;
+let lastPingDay   = -1;
+let selectedIdx   = -1;
+let audioEnabled  = false;
+let audioCtx      = null;
+let droneNodes    = null;
+let hoveredMesh   = null;
+
+const orbGroup  = new THREE.Group();
+const pathGroup = new THREE.Group();
+scene.add(orbGroup, pathGroup);
+
+const raycaster = new THREE.Raycaster();
+raycaster.params.Points.threshold = 0.05;
+const mouse = new THREE.Vector2(-99, -99);
+
+// ---- NASA Data ----
+async function fetchAsteroids() {
+  const { start, end } = getRange();
+  const url = `https://api.nasa.gov/neo/rest/v1/feed?start_date=${start}&end_date=${end}&api_key=${NASA_API_KEY}`;
+  const res = await fetch(url);
+  if (res.status === 429) throw new Error('RATE_LIMIT');
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const json = await res.json();
+  if (json.error) throw new Error('RATE_LIMIT');
+
+  const list = [];
+  for (const [, objs] of Object.entries(json.near_earth_objects)) {
+    for (const obj of objs) {
+      const ca  = obj.close_approach_data[0];
+      const dMin = obj.estimated_diameter.meters.estimated_diameter_min;
+      const dMax = obj.estimated_diameter.meters.estimated_diameter_max;
+      list.push({
+        id:       obj.id,
+        name:     obj.name.replace(/[()]/g, ''),
+        diam:     (dMin + dMax) / 2,
+        diamMin:  dMin,
+        diamMax:  dMax,
+        date:     ca.close_approach_date,
+        missKm:   parseFloat(ca.miss_distance.kilometers),
+        velKph:   parseFloat(ca.relative_velocity.kilometers_per_hour),
+        hazard:   obj.is_potentially_hazardous_asteroid,
+      });
+    }
+  }
+  list.sort((a, b) => new Date(a.date) - new Date(b.date));
+  return list;
+}
+
+// ---- Build Orbs ----
+function buildOrbs(data) {
+  while (orbGroup.children.length) orbGroup.remove(orbGroup.children[0]);
+  orbMeshes = [];
+
+  const diams  = data.map(d => Math.max(d.diam, 1));
+  const logMin = Math.log(Math.min(...diams));
+  const logMax = Math.log(Math.max(...diams));
+  const misses = data.map(d => d.missKm);
+  const minM   = Math.min(...misses);
+  const maxM   = Math.max(...misses);
+
+  data.forEach((ast, i) => {
+    const t    = (Math.log(Math.max(ast.diam, 1)) - logMin) / (logMax - logMin || 1);
+    const size = 0.006 + t * 0.034;  // tiny relative to Earth radius of 1.0
+    const col  = ast.hazard ? 0xff6b00 : 0x00cfff;
+
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(size, 16, 16),
+      new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 1.2, roughness: 0.3 })
+    );
+
+    const glowMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(size * 1.9, 12, 12),
+      new THREE.MeshBasicMaterial({
+        color: col, transparent: true, opacity: 0.1,
+        side: THREE.BackSide, blending: THREE.AdditiveBlending, depthWrite: false,
+      })
+    );
+    mesh.add(glowMesh);
+
+    // Distribute on a sphere shell; use golden angle spiral for even spacing
+    const tMiss  = (ast.missKm - minM) / (maxM - minM || 1);
+    const radius = 1.7 + tMiss * 2.3;
+    const theta  = (i * 2.399963229) % (Math.PI * 2);
+    const phi    = Math.acos(1 - 2 * (i + 0.5) / data.length);
+
+    mesh.position.set(
+      radius * Math.sin(phi) * Math.cos(theta),
+      radius * Math.sin(phi) * Math.sin(theta),
+      radius * Math.cos(phi)
+    );
+
+    mesh.userData = { index: i };
+    orbGroup.add(mesh);
+    orbMeshes.push({ mesh, glowMesh, data: ast });
+  });
+}
+
+// ---- Visibility (scrubber) ----
+function refreshVisibility() {
+  const { start } = getRange();
+  const base = new Date(start + 'T00:00:00').getTime();
+  const sel  = base + scrubDay * 86400000;
+
+  orbMeshes.forEach(({ mesh, data }) => {
+    const t    = new Date(data.date + 'T00:00:00').getTime();
+    const diff = Math.abs((t - sel) / 86400000);
+    const op   = diff < 0.5 ? 1.0 : Math.max(0.1, 1.0 - diff * 0.28);
+    mesh.material.opacity    = op;
+    mesh.material.transparent = op < 1;
+    mesh.children[0].material.opacity = op * 0.1;
+  });
+}
+
+// ---- Side Panel ----
+function openPanel(idx) {
+  selectedIdx = idx;
+  const a = asteroids[idx];
+
+  document.getElementById('panel-name').textContent = a.name;
+
+  const badge = document.getElementById('panel-badge');
+  if (a.hazard) {
+    badge.textContent = 'POTENTIALLY HAZARDOUS ⚠️';
+    badge.className   = 'badge-hazard';
+  } else {
+    badge.textContent = 'Safe Passage ✓';
+    badge.className   = 'badge-safe';
+  }
+
+  document.getElementById('p-date').textContent    = fmtDate(a.date);
+  document.getElementById('p-dist-km').textContent = fmt(a.missKm) + ' km';
+  document.getElementById('p-dist-ld').textContent = (a.missKm / 384400).toFixed(2) + ' lunar distances';
+  document.getElementById('p-vel-kph').textContent = fmt(a.velKph) + ' km/h';
+  document.getElementById('p-vel-kps').textContent = (a.velKph / 3600).toFixed(2) + ' km/s';
+  document.getElementById('p-diam').textContent    = fmt(a.diamMin) + ' – ' + fmt(a.diamMax) + ' m';
+
+  document.getElementById('side-panel').classList.add('open');
+}
+
+function closePanel() {
+  document.getElementById('side-panel').classList.remove('open');
+  selectedIdx = -1;
+  clearPath();
+}
+
+document.getElementById('panel-close').addEventListener('click', closePanel);
+
+// ---- Flyby Path ----
+let pathAnimId = null;
+
+function clearPath() {
+  while (pathGroup.children.length) pathGroup.remove(pathGroup.children[0]);
+  if (pathAnimId) { cancelAnimationFrame(pathAnimId); pathAnimId = null; }
+}
+
+function animatePath(mesh) {
+  clearPath();
+  const pos = mesh.position.clone();
+  const dir = pos.clone().normalize();
+
+  const inPt = pos.clone().add(dir.clone().multiplyScalar(3));
+
+  // Outgoing: deflect tangentially so the path curves around Earth, not through it
+  const perp = new THREE.Vector3(dir.y, -dir.x, dir.z).normalize();
+  const outPt = pos.clone()
+    .add(perp.multiplyScalar(2.5 + Math.random()))
+    .add(dir.clone().multiplyScalar(0.8));
+
+  const curve  = new THREE.CatmullRomCurve3([inPt, pos, outPt]);
+  const points = curve.getPoints(90);
+
+  const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+  const col = mesh.material.emissive.getHex();
+  pathGroup.add(new THREE.Line(lineGeo, new THREE.LineBasicMaterial({
+    color: col, transparent: true, opacity: 0.28,
+    blending: THREE.AdditiveBlending, depthWrite: false,
+  })));
+
+  const dot = new THREE.Mesh(
+    new THREE.SphereGeometry(0.022, 8, 8),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, blending: THREE.AdditiveBlending })
+  );
+  pathGroup.add(dot);
+
+  const t0 = performance.now();
+  function step(now) {
+    const t = Math.min((now - t0) / 3000, 1);
+    dot.position.copy(curve.getPoint(t));
+    if (t < 1) pathAnimId = requestAnimationFrame(step);
+    else pathGroup.remove(dot);
+  }
+  pathAnimId = requestAnimationFrame(step);
+}
+
+// ---- Raycaster events ----
+canvas.addEventListener('mousemove', e => {
+  mouse.x =  (e.clientX / window.innerWidth)  * 2 - 1;
+  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+});
+
+canvas.addEventListener('click', () => {
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(orbGroup.children, false);
+  if (hits.length) {
+    const idx = hits[0].object.userData.index;
+    openPanel(idx);
+    animatePath(hits[0].object);
+    if (audioEnabled) playPing();
+  }
+});
+
+// ---- Scrubber ----
+const scrubEl   = document.getElementById('scrubber');
+const scrubDate = document.getElementById('scrubber-date');
+const playBtn   = document.getElementById('play-btn');
+
+function updateScrubDate() {
+  const { start } = getRange();
+  const t = new Date(start + 'T00:00:00').getTime() + scrubDay * 86400000;
+  scrubDate.textContent = new Date(t).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function initScrubLabels() {
+  const { start, end } = getRange();
+  document.getElementById('s-start').textContent = new Date(start + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  document.getElementById('s-end').textContent   = new Date(end   + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+scrubEl.addEventListener('input', () => {
+  scrubDay = parseFloat(scrubEl.value);
+  updateScrubDate();
+  refreshVisibility();
+  maybeNewDayPing();
+  drawTimeline();
+});
+
+playBtn.addEventListener('click', () => {
+  if (isPlaying) {
+    isPlaying = false;
+    clearInterval(playTimer);
+    playBtn.textContent = '▶ Play';
+    return;
+  }
+  isPlaying = true;
+  playBtn.textContent = '⏹ Stop';
+  if (scrubDay >= 6) { scrubDay = 0; scrubEl.value = 0; }
+
+  playTimer = setInterval(() => {
+    scrubDay = Math.min(scrubDay + 6 / (7 * 15), 6);  // ~1 day per 1.5s at 100ms tick
+    scrubEl.value = scrubDay;
+    updateScrubDate();
+    refreshVisibility();
+    maybeNewDayPing();
+    drawTimeline();
+    if (scrubDay >= 6) {
+      isPlaying = false;
+      clearInterval(playTimer);
+      playBtn.textContent = '▶ Play';
+    }
+  }, 100);
+});
+
+function maybeNewDayPing() {
+  const d = Math.floor(scrubDay);
+  if (d !== lastPingDay) { lastPingDay = d; if (audioEnabled) playPing(); }
+}
+
+// ---- Timeline ----
+const tlToggle  = document.getElementById('timeline-toggle');
+const tlPanel   = document.getElementById('timeline-panel');
+const tlCanvas  = document.getElementById('timeline-canvas');
+let   tlOpen    = false;
+let   tlHover   = -1;
+
+tlToggle.addEventListener('click', () => {
+  tlOpen = !tlOpen;
+  tlPanel.classList.toggle('open', tlOpen);
+  if (tlOpen) drawTimeline();
+});
+
+function drawTimeline() {
+  if (!tlOpen || !asteroids.length) return;
+  const ctx = tlCanvas.getContext('2d');
+  const W   = tlCanvas.offsetWidth;
+  const H   = 80;
+  tlCanvas.width  = W;
+  tlCanvas.height = H;
+  ctx.clearRect(0, 0, W, H);
+
+  const { start } = getRange();
+  const base = new Date(start + 'T00:00:00').getTime();
+  const vels = asteroids.map(a => a.velKph);
+  const minV = Math.min(...vels), maxV = Math.max(...vels);
+
+  // Scrubber line
+  const sx = (scrubDay / 6) * W;
+  ctx.beginPath(); ctx.moveTo(sx, 0); ctx.lineTo(sx, H);
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth = 1; ctx.stroke();
+
+  // Baseline
+  ctx.beginPath(); ctx.moveTo(0, H - 8); ctx.lineTo(W, H - 8);
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 1; ctx.stroke();
+
+  asteroids.forEach((ast, i) => {
+    const dayOff = (new Date(ast.date + 'T00:00:00').getTime() - base) / 86400000;
+    const x  = (dayOff / 6) * W;
+    const vt = (ast.velKph - minV) / (maxV - minV || 1);
+    const h  = 10 + vt * (H - 26);
+    const hi = i === tlHover;
+    ctx.beginPath();
+    ctx.moveTo(x, H - 8);
+    ctx.lineTo(x, H - 8 - h);
+    ctx.strokeStyle = ast.hazard ? '#ff6b00' : '#00cfff';
+    ctx.lineWidth   = hi ? 3 : 2;
+    ctx.globalAlpha = hi ? 1.0 : 0.65;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  });
+}
+
+tlCanvas.addEventListener('mousemove', e => {
+  if (!asteroids.length) return;
+  const rect = tlCanvas.getBoundingClientRect();
+  const x    = e.clientX - rect.left;
+  const W    = tlCanvas.width || tlCanvas.offsetWidth;
+  const { start } = getRange();
+  const base = new Date(start + 'T00:00:00').getTime();
+  const hDay = (x / W) * 6;
+  let best = -1, bestD = 0.45;
+  asteroids.forEach((a, i) => {
+    const d = Math.abs((new Date(a.date + 'T00:00:00').getTime() - base) / 86400000 - hDay);
+    if (d < bestD) { bestD = d; best = i; }
+  });
+  tlHover = best;
+  drawTimeline();
+  orbMeshes.forEach(({ mesh }, i) => {
+    mesh.material.emissiveIntensity = i === best ? 3.5 : 1.2;
+  });
+});
+
+tlCanvas.addEventListener('mouseleave', () => {
+  tlHover = -1;
+  drawTimeline();
+  orbMeshes.forEach(({ mesh }) => { mesh.material.emissiveIntensity = 1.2; });
+});
+
+tlCanvas.addEventListener('click', e => {
+  if (tlHover >= 0) {
+    openPanel(tlHover);
+    animatePath(orbMeshes[tlHover].mesh);
+  }
+});
+
+// ---- Audio ----
+document.getElementById('audio-toggle').addEventListener('click', () => {
+  if (!audioCtx) {
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch(e) {
+      document.getElementById('audio-toggle').style.display = 'none';
+      return;
+    }
+  }
+  audioEnabled = !audioEnabled;
+  document.getElementById('audio-toggle').textContent = audioEnabled ? '🔊' : '🔇';
+  if (audioEnabled) { startDrone(); playPing(); }
+  else stopDrone();
+});
+
+function startDrone() {
+  if (droneNodes) return;
+  const master = audioCtx.createGain();
+  master.gain.value = 0.04;
+  master.connect(audioCtx.destination);
+
+  const lfo = audioCtx.createOscillator();
+  lfo.frequency.value = 0.12;
+  const lfoG = audioCtx.createGain();
+  lfoG.gain.value = 0.012;
+  lfo.connect(lfoG); lfoG.connect(master.gain);
+  lfo.start();
+
+  const o1 = audioCtx.createOscillator();
+  o1.type = 'sine'; o1.frequency.value = 55;
+  o1.connect(master); o1.start();
+
+  const o2 = audioCtx.createOscillator();
+  o2.type = 'sine'; o2.frequency.value = 57.8;
+  o2.connect(master); o2.start();
+
+  droneNodes = { master, lfo, o1, o2 };
+}
+
+function stopDrone() {
+  if (!droneNodes) return;
+  ['o1','o2','lfo'].forEach(k => droneNodes[k].stop());
+  droneNodes = null;
+}
+
+function playPing() {
+  if (!audioCtx) return;
+  const t   = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const env = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(1100, t);
+  osc.frequency.exponentialRampToValueAtTime(280, t + 0.8);
+  env.gain.setValueAtTime(0, t);
+  env.gain.linearRampToValueAtTime(0.1, t + 0.02);
+  env.gain.exponentialRampToValueAtTime(0.0001, t + 0.8);
+  osc.connect(env); env.connect(audioCtx.destination);
+  osc.start(t); osc.stop(t + 0.8);
+}
+
+// ---- Render Loop ----
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
+
+  earthGroup.rotation.y += 0.0005;
+  cloudMesh.rotation.y  += 0.00025;
+
+  // Pulse orbs
+  orbMeshes.forEach(({ mesh }, i) => {
+    const pulse = 1.1 + 0.3 * Math.sin(t * 1.4 + i * 1.27);
+    mesh.material.emissiveIntensity = pulse;
+  });
+
+  // Hover highlight
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(orbGroup.children, false);
+  if (hits.length > 0) {
+    document.body.style.cursor = 'pointer';
+    hoveredMesh = hits[0].object;
+  } else {
+    document.body.style.cursor = 'default';
+    hoveredMesh = null;
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+// ---- Resize ----
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  if (tlOpen) drawTimeline();
+});
+
+// ---- Boot ----
+initScrubLabels();
+updateScrubDate();
+
+// Start rendering immediately so Earth is visible while API loads
+animate();
+
+(async () => {
+  const loadEl  = document.getElementById('loading');
+  const errorEl = document.getElementById('error-state');
+  try {
+    asteroids = await fetchAsteroids();
+    buildOrbs(asteroids);
+    refreshVisibility();
+    lastPingDay = Math.floor(scrubDay);
+
+    document.getElementById('object-count').textContent =
+      `${asteroids.length} object${asteroids.length !== 1 ? 's' : ''} approaching in the next 7 days`;
+
+    loadEl.classList.add('hidden');
+  } catch(e) {
+    console.error(e);
+    loadEl.classList.add('hidden');
+    if (e.message === 'RATE_LIMIT') {
+      document.getElementById('error-text').textContent =
+        'NASA API rate limit reached (DEMO_KEY allows 30 requests/hour). Wait a minute and retry, or get a free key at api.nasa.gov.';
+    }
+    errorEl.classList.add('visible');
+  }
+})();
+</script>
+</body>
+</html>
