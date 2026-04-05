@@ -1,0 +1,1625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MedRx Comparative Safety System</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ── RESET & BASE ──────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #0a0e1a;
+  --surface:  #111827;
+  --border:   #1e2d45;
+  --accent:   #3b82f6;
+  --text:     #e2e8f0;
+  --muted:    #94a3b8;
+  --red:      #ef4444;
+  --amber:    #f59e0b;
+  --yellow:   #eab308;
+  --green:    #22c55e;
+  --hdr:      #050810;
+  --mono:     'Courier New', Courier, monospace;
+  --sans:     'Inter', system-ui, sans-serif;
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 13px;
+  height: 100%;
+  min-height: 100vh;
+}
+
+/* ── ACCESS MODAL ──────────────────────────────────────────────────── */
+#access-overlay {
+  position: fixed; inset: 0;
+  background: #000;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999;
+}
+
+.access-panel {
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-top: 3px solid var(--accent);
+  max-width: 560px; width: 90%;
+  padding: 0;
+  box-shadow: 0 0 60px rgba(59,130,246,0.25);
+}
+
+.access-header {
+  background: var(--hdr);
+  border-bottom: 1px solid var(--border);
+  padding: 24px;
+  text-align: center;
+}
+
+.access-header .caduceus {
+  font-size: 28px;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.access-header h1 {
+  font-family: var(--mono);
+  font-size: 14px;
+  letter-spacing: 2px;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+
+.access-header .sub {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--red);
+  letter-spacing: 3px;
+}
+
+.access-body {
+  padding: 24px;
+}
+
+.access-warn-box {
+  background: rgba(239,68,68,0.08);
+  border: 1px solid rgba(239,68,68,0.3);
+  border-left: 3px solid var(--red);
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.6;
+  color: #fca5a5;
+}
+
+.access-attr {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border);
+}
+
+.access-session {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--green);
+  letter-spacing: 1px;
+}
+
+.access-footer {
+  border-top: 1px solid var(--border);
+  padding: 16px 24px;
+  text-align: center;
+}
+
+#ack-btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: 1px;
+  padding: 12px 28px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+#ack-btn:hover { background: #2563eb; }
+
+/* ── MAIN APP ──────────────────────────────────────────────────────── */
+#app { display: flex; flex-direction: column; min-height: 100vh; }
+
+/* ── HEADER ────────────────────────────────────────────────────────── */
+#hdr {
+  background: var(--hdr);
+  border-bottom: 2px solid var(--accent);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 16px;
+  height: 42px;
+  flex-shrink: 0;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.hdr-brand {
+  color: var(--accent);
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.hdr-sep { color: var(--border); margin: 0 8px; }
+
+.hdr-module { color: var(--muted); }
+
+.hdr-center {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.hdr-right {
+  display: flex; align-items: center; gap: 12px;
+  color: var(--muted);
+}
+
+#hdr-time { font-size: 11px; }
+
+.icon-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 12px;
+  width: 24px; height: 24px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: border-color 0.15s;
+}
+.icon-btn:hover { border-color: var(--accent); background: rgba(59,130,246,0.1); }
+
+/* ── MAIN CONTENT ──────────────────────────────────────────────────── */
+main { flex: 1; padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
+
+/* ── SEARCH ROW ────────────────────────────────────────────────────── */
+.search-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.search-slot {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 10px 14px;
+}
+
+.field-label {
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+
+.search-input-row {
+  display: flex; gap: 8px;
+}
+
+.search-input-row input {
+  flex: 1;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  padding: 7px 10px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.search-input-row input:focus { border-color: var(--accent); }
+.search-input-row input::placeholder { color: #374151; }
+
+.query-btn {
+  background: transparent;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 7px 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+  letter-spacing: 0.5px;
+}
+.query-btn:hover { background: rgba(59,130,246,0.15); }
+.query-btn:active { background: rgba(59,130,246,0.25); }
+
+/* ── IDENTITY ROW ──────────────────────────────────────────────────── */
+.identity-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+/* ── PANELS ────────────────────────────────────────────────────────── */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+}
+
+.panel-title {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--accent);
+  background: rgba(59,130,246,0.06);
+  border-bottom: 1px solid var(--border);
+  padding: 7px 14px;
+}
+
+.panel-body { padding: 12px 14px; }
+
+/* ── IDENTITY FIELDS ───────────────────────────────────────────────── */
+.identity-field {
+  display: flex;
+  padding: 4px 6px;
+  transition: background 0.1s;
+  border-radius: 2px;
+}
+.identity-field:hover { background: rgba(59,130,246,0.07); }
+
+.field-key {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 1px;
+  width: 140px;
+  flex-shrink: 0;
+}
+
+.field-val {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text);
+  word-break: break-word;
+}
+
+.field-val.na { color: #374151; font-style: italic; }
+
+/* ── TAB BAR ───────────────────────────────────────────────────────── */
+.tab-bar {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: flex; align-items: stretch;
+  gap: 0;
+  height: 38px;
+}
+
+.tab-btn {
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--border);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+  padding: 0 18px;
+  cursor: pointer;
+  display: flex; align-items: center; gap: 8px;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.tab-btn:hover { background: rgba(59,130,246,0.08); color: var(--text); }
+.tab-btn.active {
+  background: rgba(59,130,246,0.12);
+  color: var(--accent);
+  border-bottom: 2px solid var(--accent);
+}
+
+.tab-info {
+  font-size: 11px;
+  color: var(--muted);
+  width: 16px; height: 16px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.tab-info:hover { border-color: var(--accent); color: var(--accent); background: rgba(59,130,246,0.1); }
+
+/* ── TAB CONTENT ───────────────────────────────────────────────────── */
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+
+.dual-panel {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+/* ── FAERS NOTICE ──────────────────────────────────────────────────── */
+.faers-notice {
+  display: flex; gap: 12px; align-items: flex-start;
+  background: rgba(245,158,11,0.07);
+  border: 1px solid rgba(245,158,11,0.25);
+  border-left: 3px solid var(--amber);
+  padding: 10px 14px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: #fbbf24;
+  line-height: 1.7;
+}
+.faers-notice .notice-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+
+/* ── BAR CHART ─────────────────────────────────────────────────────── */
+.stat-block {
+  background: rgba(59,130,246,0.06);
+  border: 1px solid rgba(59,130,246,0.2);
+  padding: 10px 14px;
+  margin-bottom: 14px;
+}
+.stat-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.stat-number {
+  font-family: var(--mono);
+  font-size: 24px;
+  color: var(--accent);
+  font-weight: bold;
+}
+
+.section-header {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px;
+  margin-bottom: 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+
+.bar-chart { display: flex; flex-direction: column; gap: 5px; }
+
+.bar-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 3px 6px;
+  transition: background 0.1s;
+  border-radius: 2px;
+}
+.bar-row:hover { background: rgba(59,130,246,0.07); }
+
+.bar-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text);
+  width: 160px;
+  flex-shrink: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bar-track {
+  flex: 1;
+  height: 12px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 1px;
+  transition: width 0.5s ease;
+}
+
+.bar-count {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  width: 52px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* ── RECALL ITEMS ──────────────────────────────────────────────────── */
+.recall-list { display: flex; flex-direction: column; gap: 8px; }
+
+.recall-item {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  padding: 10px 12px;
+  transition: background 0.1s;
+}
+.recall-item:hover { background: rgba(59,130,246,0.05); }
+.recall-item.class1 { border-left-color: var(--red); }
+.recall-item.class2 { border-left-color: var(--amber); }
+.recall-item.class3 { border-left-color: var(--yellow); }
+
+.recall-row {
+  display: flex; align-items: flex-start; gap: 8px;
+  margin-bottom: 4px;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+.recall-key { color: var(--muted); width: 130px; flex-shrink: 0; font-size: 10px; letter-spacing: 0.5px; }
+.recall-val { color: var(--text); }
+
+.badge {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+.badge-red    { background: rgba(239,68,68,0.2);  color: #fca5a5; border: 1px solid rgba(239,68,68,0.4); }
+.badge-amber  { background: rgba(245,158,11,0.2); color: #fcd34d; border: 1px solid rgba(245,158,11,0.4); }
+.badge-yellow { background: rgba(234,179,8,0.2);  color: #fde047; border: 1px solid rgba(234,179,8,0.4); }
+.badge-green  { background: rgba(34,197,94,0.2);  color: #86efac; border: 1px solid rgba(34,197,94,0.4); }
+
+.recall-reason { font-family: var(--mono); font-size: 11px; color: var(--text); line-height: 1.5; }
+.reason-truncated { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.reason-truncated.expanded { display: block; }
+
+.show-more-btn {
+  background: none; border: none;
+  color: var(--accent); font-family: var(--mono); font-size: 10px;
+  cursor: pointer; padding: 2px 0; letter-spacing: 0.5px;
+}
+.show-more-btn:hover { text-decoration: underline; }
+
+/* ── ACCORDION ─────────────────────────────────────────────────────── */
+.accordion-item { border: 1px solid var(--border); margin-bottom: 4px; }
+
+.accordion-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 14px;
+  cursor: pointer;
+  background: rgba(255,255,255,0.02);
+  user-select: none;
+  transition: background 0.15s;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--muted);
+}
+.accordion-header:hover { background: rgba(59,130,246,0.08); color: var(--text); }
+.accordion-header.open { color: var(--accent); background: rgba(59,130,246,0.06); border-bottom: 1px solid var(--border); }
+
+.accordion-chevron { font-size: 10px; transition: transform 0.2s; }
+.accordion-header.open .accordion-chevron { transform: rotate(180deg); }
+
+.accordion-body {
+  display: none;
+  padding: 12px 14px;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--text);
+  max-height: 260px;
+  overflow-y: auto;
+}
+.accordion-body.open { display: block; }
+.accordion-body::-webkit-scrollbar { width: 4px; }
+.accordion-body::-webkit-scrollbar-thumb { background: var(--border); }
+
+.accordion-header-row {
+  display: flex; align-items: center; gap: 8px;
+}
+
+/* ── CLASS PROFILE ─────────────────────────────────────────────────── */
+.class-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+  padding: 4px;
+}
+
+.class-card {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border);
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.class-card:hover {
+  background: rgba(59,130,246,0.08);
+  border-color: rgba(59,130,246,0.4);
+}
+
+.card-name {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--accent);
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.card-field {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  margin-bottom: 3px;
+}
+.card-field span { color: var(--text); }
+
+.card-badge-row { margin-top: 8px; }
+
+/* ── STATUS & ERROR STATES ─────────────────────────────────────────── */
+.no-data-msg {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: #374151;
+  padding: 16px;
+  text-align: center;
+  letter-spacing: 1px;
+}
+
+.error-msg {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--amber);
+  padding: 12px;
+  background: rgba(245,158,11,0.06);
+  border: 1px solid rgba(245,158,11,0.2);
+  border-left: 3px solid var(--amber);
+}
+
+.loading-text {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+  padding: 16px;
+  text-align: center;
+}
+.loading-text::after {
+  content: '▌';
+  animation: blink 1s step-end infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+/* ── STATUS BAR ────────────────────────────────────────────────────── */
+.status-bar {
+  background: var(--hdr);
+  border-top: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 16px;
+  height: 32px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+#status-text { color: var(--text); }
+
+.dot {
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  margin-right: 5px;
+}
+.dot.green { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.dot.red   { background: var(--red);   box-shadow: 0 0 6px var(--red); }
+.dot.amber { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+
+/* ── APP FOOTER ────────────────────────────────────────────────────── */
+.app-footer-attr {
+  background: var(--hdr);
+  border-top: 1px solid var(--border);
+  padding: 6px 16px;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: #1e3a5f;
+  flex-shrink: 0;
+}
+
+/* ── HELP MODAL ────────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.75);
+  backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 999;
+}
+
+.modal-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--accent);
+  max-width: 600px; width: 90%;
+  max-height: 80vh;
+  display: flex; flex-direction: column;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+}
+
+.modal-header {
+  background: var(--hdr);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 18px;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.modal-close {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 16px;
+  width: 26px; height: 26px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+}
+.modal-close:hover { border-color: var(--red); color: var(--red); }
+
+.modal-body {
+  padding: 20px 18px;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--text);
+  overflow-y: auto;
+}
+
+.modal-body h3 {
+  color: var(--accent);
+  font-size: 11px;
+  letter-spacing: 2px;
+  margin: 16px 0 8px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+}
+.modal-body h3:first-child { margin-top: 0; }
+.modal-body p { color: var(--muted); margin-bottom: 10px; }
+.modal-body ul { color: var(--muted); padding-left: 18px; }
+.modal-body li { margin-bottom: 4px; }
+.modal-body strong { color: var(--text); }
+
+/* ── SCROLLBAR ─────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #2d4a6e; }
+
+/* ── AUTOCOMPLETE ──────────────────────────────────────────────────── */
+.ac-wrapper { position: relative; flex: 1; }
+
+.ac-dropdown {
+  position: absolute; top: 100%; left: 0; right: 0;
+  background: #0d1626;
+  border: 1px solid var(--accent);
+  border-top: none;
+  list-style: none;
+  z-index: 200;
+  max-height: 240px;
+  overflow-y: auto;
+  display: none;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+}
+.ac-dropdown.open { display: block; }
+
+.ac-item {
+  padding: 8px 10px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
+}
+.ac-item:last-child { border-bottom: none; }
+.ac-item:hover, .ac-item.ac-selected { background: rgba(59,130,246,0.15); }
+
+.ac-item-name { font-family: var(--mono); font-size: 12px; color: var(--text); }
+.ac-item-sub  { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-top: 2px; }
+.ac-tag {
+  font-size: 9px; letter-spacing: 1px;
+  color: var(--accent); margin-right: 5px;
+}
+.ac-tag-brand { color: var(--amber); }
+
+/* ── RESPONSIVE ────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .search-row, .identity-row, .dual-panel {
+    grid-template-columns: 1fr;
+  }
+  .bar-label { width: 110px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── SYSTEM ACCESS MODAL ─────────────────────────────────────────────── -->
+<div id="access-overlay">
+  <div class="access-panel">
+    <div class="access-header">
+      <span class="caduceus">⚕</span>
+      <h1>MEDRX PHARMACOLOGY SYSTEM</h1>
+      <div class="sub">AUTHORIZED USE ONLY</div>
+    </div>
+    <div class="access-body">
+      <div class="access-warn-box">
+        This tool is for educational purposes only and is not intended for clinical use.
+        Do not make medical decisions based on this data.
+      </div>
+      <div class="access-attr">
+        This product uses publicly available data from the U.S. Food and Drug Administration (FDA).
+        FDA is not responsible for the product and does not endorse or recommend this or any other product.
+      </div>
+      <div class="access-session">SESSION ESTABLISHING... <span id="access-sid"></span></div>
+    </div>
+    <div class="access-footer">
+      <button id="ack-btn" onclick="acknowledgeAccess()">[ ACKNOWLEDGE &amp; ENTER SYSTEM ]</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MAIN APPLICATION ────────────────────────────────────────────────── -->
+<div id="app" style="display:none; flex-direction:column; min-height:100vh;">
+
+  <!-- Header -->
+  <header id="hdr">
+    <div style="display:flex;align-items:center;gap:0">
+      <span class="hdr-brand">MEDRX SYSTEM</span>
+      <span class="hdr-sep"> · </span>
+      <span class="hdr-module">PHARMACOLOGY MODULE</span>
+    </div>
+    <div class="hdr-center" id="hdr-sid"></div>
+    <div class="hdr-right">
+      <span id="hdr-time"></span>
+      <button class="icon-btn" onclick="openHelp('system')" title="About this system">?</button>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- Search Row -->
+    <div class="search-row">
+      <div class="search-slot">
+        <label class="field-label">DRUG A — DRUG IDENTIFIER:</label>
+        <div class="search-input-row">
+          <div class="ac-wrapper">
+            <input type="text" id="search-a" placeholder="Enter generic or brand name..." autocomplete="off">
+            <ul class="ac-dropdown" id="ac-a"></ul>
+          </div>
+          <button class="query-btn" onclick="queryDrug('a')">[ QUERY FDA ]</button>
+        </div>
+      </div>
+      <div class="search-slot">
+        <label class="field-label">DRUG B — DRUG IDENTIFIER:</label>
+        <div class="search-input-row">
+          <div class="ac-wrapper">
+            <input type="text" id="search-b" placeholder="Enter generic or brand name..." autocomplete="off">
+            <ul class="ac-dropdown" id="ac-b"></ul>
+          </div>
+          <button class="query-btn" onclick="queryDrug('b')">[ QUERY FDA ]</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Identity Panels -->
+    <div class="identity-row">
+      <div class="panel">
+        <div class="panel-title">DRUG A — RECORD</div>
+        <div class="panel-body" id="identity-a">
+          <div class="no-data-msg">NO DRUG LOADED — ENTER IDENTIFIER ABOVE</div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">DRUG B — RECORD</div>
+        <div class="panel-body" id="identity-b">
+          <div class="no-data-msg">NO DRUG LOADED — ENTER IDENTIFIER ABOVE</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab Bar -->
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="adverse" onclick="switchTab('adverse')">
+        ADVERSE EVENTS
+        <span class="tab-info" onclick="event.stopPropagation();openHelp('adverse')" title="How to read this data">ℹ</span>
+      </button>
+      <button class="tab-btn" data-tab="recalls" onclick="switchTab('recalls')">
+        RECALL HISTORY
+        <span class="tab-info" onclick="event.stopPropagation();openHelp('recalls')" title="Understanding recall classifications">ℹ</span>
+      </button>
+      <button class="tab-btn" data-tab="label" onclick="switchTab('label')">
+        LABEL INFO
+      </button>
+      <button class="tab-btn" data-tab="class" onclick="switchTab('class')">
+        CLASS PROFILE
+        <span class="tab-info" onclick="event.stopPropagation();openHelp('class')" title="About pharmacologic drug classes">ℹ</span>
+      </button>
+    </div>
+
+    <!-- Tab Content -->
+    <div id="tab-content">
+
+      <!-- ADVERSE EVENTS -->
+      <div id="tab-adverse" class="tab-pane active">
+        <div class="dual-panel">
+          <div class="panel">
+            <div class="panel-title">DRUG A — ADVERSE EVENTS</div>
+            <div class="panel-body" id="adverse-a">
+              <div class="no-data-msg">NO DRUG LOADED</div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-title">DRUG B — ADVERSE EVENTS</div>
+            <div class="panel-body" id="adverse-b">
+              <div class="no-data-msg">NO DRUG LOADED</div>
+            </div>
+          </div>
+        </div>
+        <div class="faers-notice">
+          <span class="notice-icon">⚠</span>
+          <div>
+            <strong>FAERS DATA INTERPRETATION NOTICE</strong><br>
+            Adverse event reports are voluntarily submitted and do not confirm causation.
+            Report frequency reflects drug popularity, not relative risk. Not for clinical use.
+          </div>
+        </div>
+      </div>
+
+      <!-- RECALLS -->
+      <div id="tab-recalls" class="tab-pane">
+        <div class="dual-panel">
+          <div class="panel">
+            <div class="panel-title">DRUG A — RECALL HISTORY</div>
+            <div class="panel-body" id="recalls-a">
+              <div class="no-data-msg">NO DRUG LOADED</div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-title">DRUG B — RECALL HISTORY</div>
+            <div class="panel-body" id="recalls-b">
+              <div class="no-data-msg">NO DRUG LOADED</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LABEL INFO -->
+      <div id="tab-label" class="tab-pane">
+        <div class="dual-panel">
+          <div class="panel">
+            <div class="panel-title">DRUG A — LABEL INFORMATION</div>
+            <div class="panel-body" id="label-a">
+              <div class="no-data-msg">NO DRUG LOADED</div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-title">DRUG B — LABEL INFORMATION</div>
+            <div class="panel-body" id="label-b">
+              <div class="no-data-msg">NO DRUG LOADED</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CLASS PROFILE -->
+      <div id="tab-class" class="tab-pane">
+        <div class="panel">
+          <div class="panel-title" id="class-title">CLASS PROFILE — FORMULARY SCAN</div>
+          <div class="panel-body" id="class-body">
+            <div class="no-data-msg">LOAD DRUG A TO GENERATE CLASS PROFILE</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /tab-content -->
+
+  </main>
+
+  <!-- Status Bar -->
+  <div class="status-bar">
+    <div>STATUS: <span id="status-text">IDLE</span></div>
+    <div><span id="api-dot" class="dot green"></span>API: <span id="api-status">ONLINE</span></div>
+    <div>SYS TIME: <span id="sys-time"></span></div>
+  </div>
+
+  <!-- Footer Attribution -->
+  <div class="app-footer-attr">
+    Data sourced from OpenFDA public API &nbsp;·&nbsp; For educational use only &nbsp;·&nbsp; Not for clinical decision-making
+  </div>
+
+</div><!-- /app -->
+
+<!-- Help Modal -->
+<div id="help-modal" class="modal-overlay" style="display:none" onclick="closeHelpBg(event)">
+  <div class="modal-panel" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span id="help-title">⚕ CLINICAL REFERENCE</span>
+      <button class="modal-close" onclick="closeHelp()">×</button>
+    </div>
+    <div class="modal-body" id="help-body"></div>
+  </div>
+</div>
+
+<script>
+// ── STATE ──────────────────────────────────────────────────────────────────
+const S = {
+  a: { name: '', label: null, events: null, recalls: null },
+  b: { name: '', label: null, events: null, recalls: null },
+  activeTab: 'adverse',
+  sid: ''
+};
+
+// ── UTILITIES ──────────────────────────────────────────────────────────────
+const q  = id  => document.getElementById(id);
+const enc = s  => encodeURIComponent(s);
+const FDA = 'https://api.fda.gov';
+
+function setStatus(msg, apiState) {
+  q('status-text').textContent = msg;
+  if (apiState === 'ok') {
+    q('api-dot').className = 'dot green';
+    q('api-status').textContent = 'ONLINE';
+  } else if (apiState === 'err') {
+    q('api-dot').className = 'dot red';
+    q('api-status').textContent = 'ERROR';
+  } else if (apiState === 'busy') {
+    q('api-dot').className = 'dot amber';
+    q('api-status').textContent = 'QUERYING';
+  }
+}
+
+function updateClock() {
+  const t = new Date().toISOString().replace(/\.\d{3}/, '');
+  q('sys-time').textContent = t;
+  q('hdr-time').textContent = t;
+}
+
+function formatDate(d) {
+  if (!d || d.length < 8) return d || 'UNKNOWN';
+  return `${d.substring(0,4)}-${d.substring(4,6)}-${d.substring(6,8)}`;
+}
+
+function escapeHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function getFirst(arr) {
+  if (!arr || !arr.length) return null;
+  return arr[0];
+}
+
+function joinFirst(arr, n) {
+  if (!arr || !arr.length) return null;
+  return arr.slice(0, n || 1).join(', ');
+}
+
+// ── API ────────────────────────────────────────────────────────────────────
+async function fdaGet(url) {
+  const resp = await fetch(url);
+  if (resp.status === 429) throw new Error('RATE_LIMIT');
+  if (resp.status === 404) return null;
+  if (!resp.ok) throw new Error('HTTP_' + resp.status);
+  return resp.json();
+}
+
+async function fetchLabel(drug) {
+  let d = await fdaGet(`${FDA}/drug/label.json?search=openfda.generic_name:"${enc(drug)}"&limit=1`);
+  if (!d?.results?.length) {
+    d = await fdaGet(`${FDA}/drug/label.json?search=openfda.brand_name:"${enc(drug)}"&limit=1`);
+  }
+  return d;
+}
+
+async function fetchEvents(drug) {
+  const [countData, totalData] = await Promise.all([
+    fdaGet(`${FDA}/drug/event.json?search=patient.drug.medicinalproduct:"${enc(drug)}"&count=patient.reaction.reactionmeddrapt.exact&limit=10`).catch(() => null),
+    fdaGet(`${FDA}/drug/event.json?search=patient.drug.medicinalproduct:"${enc(drug)}"&limit=1`).catch(() => null)
+  ]);
+  return {
+    top10: countData?.results || [],
+    total: totalData?.meta?.results?.total || 0
+  };
+}
+
+async function fetchRecalls(drug) {
+  let d = await fdaGet(`${FDA}/drug/enforcement.json?search=openfda.generic_name:"${enc(drug)}"&limit=20`).catch(() => null);
+  if (!d?.results?.length) {
+    d = await fdaGet(`${FDA}/drug/enforcement.json?search=openfda.brand_name:"${enc(drug)}"&limit=20`).catch(() => null);
+  }
+  return d;
+}
+
+async function fetchEventCount(drug) {
+  try {
+    const d = await fdaGet(`${FDA}/drug/event.json?search=patient.drug.medicinalproduct:"${enc(drug)}"&limit=1`);
+    return d?.meta?.results?.total || 0;
+  } catch { return 0; }
+}
+
+// ── RENDER: IDENTITY PANEL ────────────────────────────────────────────────
+function renderIdentity(slot) {
+  const rec = S[slot].label;
+  if (!rec) { q(`identity-${slot}`).innerHTML = '<div class="no-data-msg">NO DRUG LOADED</div>'; return; }
+  const o = rec.openfda || {};
+
+  const fields = [
+    ['GENERIC NAME',   joinFirst(o.generic_name)],
+    ['BRAND NAME(S)',  o.brand_name ? o.brand_name.slice(0,3).join(', ') : null],
+    ['MANUFACTURER',   joinFirst(o.manufacturer_name)],
+    ['DRUG CLASS',     joinFirst(o.pharm_class_epc || o.pharm_class_moa)],
+    ['NDC CODE(S)',    joinFirst(o.product_ndc)],
+    ['ROUTE',          joinFirst(o.route)],
+    ['APPLICATION',    joinFirst(o.application_number)]
+  ];
+
+  q(`identity-${slot}`).innerHTML = fields.map(([k, v]) => `
+    <div class="identity-field">
+      <span class="field-key">${k}:</span>
+      <span class="field-val${v ? '' : ' na'}">${escapeHtml(v) || 'DATA NOT AVAILABLE'}</span>
+    </div>`).join('');
+}
+
+// ── RENDER: ADVERSE EVENTS ─────────────────────────────────────────────────
+function renderAdverse(slot) {
+  const ev = S[slot].events;
+  const el = q(`adverse-${slot}`);
+
+  if (!ev) { el.innerHTML = '<div class="no-data-msg">NO DRUG LOADED</div>'; return; }
+  if (!ev.top10.length && !ev.total) {
+    el.innerHTML = '<div class="no-data-msg">NO FAERS RECORDS FOUND</div>'; return;
+  }
+
+  const top = ev.top10;
+  const maxCount = top.length ? top[0].count : 1;
+
+  const bars = top.map(r => `
+    <div class="bar-row">
+      <div class="bar-label" title="${escapeHtml(r.term)}">${escapeHtml(r.term)}</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:${(r.count / maxCount * 80).toFixed(1)}%"></div>
+      </div>
+      <div class="bar-count">${r.count.toLocaleString()}</div>
+    </div>`).join('');
+
+  el.innerHTML = `
+    <div class="stat-block">
+      <div class="stat-label">FAERS REPORTS ON FILE</div>
+      <div class="stat-number">${ev.total.toLocaleString()}</div>
+    </div>
+    <div class="section-header">TOP 10 ADVERSE REACTIONS</div>
+    <div class="bar-chart">${bars || '<div class="no-data-msg">NO REACTION DATA AVAILABLE</div>'}</div>`;
+}
+
+// ── RENDER: RECALLS ────────────────────────────────────────────────────────
+function renderRecalls(slot) {
+  const data = S[slot].recalls;
+  const el = q(`recalls-${slot}`);
+
+  if (!data) { el.innerHTML = '<div class="no-data-msg">NO DRUG LOADED</div>'; return; }
+  const results = data.results || [];
+  if (!results.length) {
+    el.innerHTML = `
+      <div class="stat-block"><div class="stat-label">TOTAL RECALL ACTIONS</div><div class="stat-number">0</div></div>
+      <div class="no-data-msg">NO ENFORCEMENT ACTIONS ON FILE</div>`;
+    return;
+  }
+
+  const total = data.meta?.results?.total || results.length;
+
+  function classInfo(c) {
+    if (!c) return { css: '', badge: 'UNKNOWN', cls: '' };
+    const n = parseInt(c.replace(/\D/g,''));
+    if (n === 1) return { css: 'class1', badge: 'CLASS I — CRITICAL',  cls: 'badge-red' };
+    if (n === 2) return { css: 'class2', badge: 'CLASS II — WARNING',  cls: 'badge-amber' };
+    if (n === 3) return { css: 'class3', badge: 'CLASS III — NOTICE',  cls: 'badge-yellow' };
+    return { css: '', badge: c, cls: 'badge-green' };
+  }
+
+  function statusBadge(s) {
+    if (!s) return '';
+    const low = s.toLowerCase();
+    if (low.includes('terminat')) return `<span class="badge badge-green">TERMINATED</span>`;
+    if (low.includes('complet'))  return `<span class="badge badge-green">COMPLETED</span>`;
+    if (low.includes('ongoing'))  return `<span class="badge badge-amber">ONGOING</span>`;
+    return `<span class="badge">${escapeHtml(s.toUpperCase())}</span>`;
+  }
+
+  const items = results.map((r, i) => {
+    const ci = classInfo(r.classification);
+    return `
+      <div class="recall-item ${ci.css}">
+        <div class="recall-row"><span class="recall-key">RECALL DATE:</span><span class="recall-val">${formatDate(r.recall_initiation_date)}</span></div>
+        <div class="recall-row"><span class="recall-key">CLASSIFICATION:</span><span class="recall-val"><span class="badge ${ci.cls}">${ci.badge}</span></span></div>
+        <div class="recall-row"><span class="recall-key">RECALLING FIRM:</span><span class="recall-val">${escapeHtml(r.recalling_firm || 'UNKNOWN')}</span></div>
+        <div class="recall-row"><span class="recall-key">STATUS:</span><span class="recall-val">${statusBadge(r.status)}</span></div>
+        <div class="recall-row" style="flex-direction:column;gap:4px">
+          <span class="recall-key">REASON:</span>
+          <div>
+            <div class="recall-reason reason-truncated" id="reason-${slot}-${i}">${escapeHtml(r.reason_for_recall || 'NOT SPECIFIED')}</div>
+            <button class="show-more-btn" onclick="toggleReason('reason-${slot}-${i}',this)">[ SHOW MORE ]</button>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="stat-block"><div class="stat-label">TOTAL RECALL ACTIONS</div><div class="stat-number">${total.toLocaleString()}</div></div>
+    <div class="recall-list">${items}</div>`;
+}
+
+// ── RENDER: LABEL INFO ─────────────────────────────────────────────────────
+function renderLabel(slot) {
+  const rec = S[slot].label;
+  const el = q(`label-${slot}`);
+
+  if (!rec) { el.innerHTML = '<div class="no-data-msg">NO DRUG LOADED</div>'; return; }
+
+  const sections = [
+    { key: 'warnings',            title: 'WARNINGS & PRECAUTIONS',   fields: ['warnings_and_cautions', 'warnings'], open: false },
+    { key: 'interactions',        title: 'DRUG INTERACTIONS',         fields: ['drug_interactions'],                 open: true  },
+    { key: 'contraindications',   title: 'CONTRAINDICATIONS',         fields: ['contraindications'],                 open: false },
+    { key: 'adverse_reactions',   title: 'ADVERSE REACTIONS',         fields: ['adverse_reactions'],                 open: false },
+    { key: 'dosage',              title: 'DOSAGE & ADMINISTRATION',   fields: ['dosage_and_administration'],         open: false }
+  ];
+
+  const interactionsBtn = `<span class="tab-info" style="margin-left:4px" onclick="event.stopPropagation();openHelp('interactions')" title="About drug interactions">ℹ</span>`;
+
+  el.innerHTML = sections.map((s, i) => {
+    const text = s.fields.map(f => rec[f]).find(v => v && v.length);
+    const content = text ? escapeHtml(Array.isArray(text) ? text.join('\n') : text).replace(/\n/g, '<br>') : '<em style="color:#374151">DATA NOT AVAILABLE FOR THIS RECORD</em>';
+    const extra = s.key === 'interactions' ? interactionsBtn : '';
+    return `
+      <div class="accordion-item">
+        <div class="accordion-header${s.open ? ' open' : ''}" onclick="toggleAccordion(this)">
+          <div class="accordion-header-row">${s.title}${extra}</div>
+          <span class="accordion-chevron">▼</span>
+        </div>
+        <div class="accordion-body${s.open ? ' open' : ''}">${content}</div>
+      </div>`;
+  }).join('');
+}
+
+// ── RENDER: CLASS PROFILE ─────────────────────────────────────────────────
+async function renderClassProfile() {
+  const rec = S.a.label;
+  const el = q('class-body');
+  const titleEl = q('class-title');
+
+  if (!rec) {
+    titleEl.textContent = 'CLASS PROFILE — FORMULARY SCAN';
+    el.innerHTML = '<div class="no-data-msg">LOAD DRUG A TO GENERATE CLASS PROFILE</div>';
+    return;
+  }
+
+  const epcs = rec.openfda?.pharm_class_epc;
+  if (!epcs || !epcs.length) {
+    titleEl.textContent = 'CLASS PROFILE — FORMULARY SCAN';
+    el.innerHTML = '<div class="no-data-msg">DRUG CLASS DATA UNAVAILABLE — FORMULARY SCAN DISABLED</div>';
+    return;
+  }
+
+  // Strip [EPC] suffix
+  const rawClass = epcs[0];
+  const className = rawClass.replace(/\s*\[EPC\]\s*/i, '').trim();
+
+  titleEl.textContent = `FORMULARY SCAN — ${className.toUpperCase()} CLASS AGENTS`;
+  el.innerHTML = '<div class="loading-text">Scanning FDA formulary database</div>';
+
+  setStatus(`SCANNING CLASS: ${className.toUpperCase()}...`, 'busy');
+
+  try {
+    const data = await fdaGet(`${FDA}/drug/label.json?search=openfda.pharm_class_epc:"${enc(rawClass)}"&limit=8`);
+    if (!data?.results?.length) {
+      el.innerHTML = '<div class="no-data-msg">NO CLASS PEERS FOUND IN FDA DATABASE</div>';
+      setStatus('CLASS SCAN COMPLETE — NO PEERS FOUND', 'ok');
+      return;
+    }
+
+    const peers = data.results;
+    titleEl.textContent = `FORMULARY SCAN — ${className.toUpperCase()} CLASS AGENTS (${peers.length} RECORDS)`;
+
+    // Fetch event counts in parallel
+    const counts = await Promise.all(peers.map(p => {
+      const name = getFirst(p.openfda?.generic_name) || getFirst(p.openfda?.brand_name);
+      return name ? fetchEventCount(name) : Promise.resolve(0);
+    }));
+
+    const cards = peers.map((p, i) => {
+      const o = p.openfda || {};
+      const name = getFirst(o.generic_name) || getFirst(o.brand_name) || 'UNKNOWN';
+      const mfr  = getFirst(o.manufacturer_name) || '—';
+      const route = getFirst(o.route) || '—';
+      const cnt  = counts[i];
+      return `
+        <div class="class-card" onclick="loadClassDrug('${escapeHtml(name).replace(/'/g,"\\'")}')">
+          <div class="card-name">${escapeHtml(name.toUpperCase())}</div>
+          <div class="card-field">MANUFACTURER: <span>${escapeHtml(mfr)}</span></div>
+          <div class="card-field">ROUTE: <span>${escapeHtml(route.toUpperCase())}</span></div>
+          <div class="card-badge-row">
+            <span class="badge badge-amber">FAERS: ${cnt.toLocaleString()}</span>
+          </div>
+        </div>`;
+    }).join('');
+
+    el.innerHTML = `
+      <p style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:12px;letter-spacing:1px">
+        CLICK A CARD TO LOAD INTO DRUG A SLOT
+      </p>
+      <div class="class-grid">${cards}</div>`;
+
+    setStatus(`CLASS SCAN COMPLETE — ${peers.length} AGENTS FOUND`, 'ok');
+  } catch(e) {
+    el.innerHTML = handleFetchErrorHtml(e);
+    setStatus('CLASS SCAN ERROR', 'err');
+  }
+}
+
+function loadClassDrug(name) {
+  q('search-a').value = name;
+  queryDrug('a');
+}
+
+// ── RENDER: ACTIVE TAB ────────────────────────────────────────────────────
+function renderActiveTab() {
+  const t = S.activeTab;
+  if (t === 'adverse') { renderAdverse('a'); renderAdverse('b'); }
+  if (t === 'recalls')  { renderRecalls('a'); renderRecalls('b'); }
+  if (t === 'label')    { renderLabel('a');   renderLabel('b'); }
+  if (t === 'class')    renderClassProfile();
+}
+
+// ── TAB SWITCHING ─────────────────────────────────────────────────────────
+function switchTab(tab) {
+  S.activeTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.id === 'tab-' + tab));
+  renderActiveTab();
+}
+
+// ── QUERY DRUG ────────────────────────────────────────────────────────────
+async function queryDrug(slot) {
+  const inputEl = q(`search-${slot}`);
+  const drug = inputEl.value.trim();
+  if (!drug) return;
+
+  S[slot].name    = drug;
+  S[slot].label   = null;
+  S[slot].events  = null;
+  S[slot].recalls = null;
+
+  q(`identity-${slot}`).innerHTML = `<div class="loading-text">Querying FDA label database</div>`;
+  setStatus(`QUERYING FDA — ${drug.toUpperCase()}`, 'busy');
+
+  try {
+    const labelData = await fetchLabel(drug);
+    if (!labelData?.results?.length) {
+      q(`identity-${slot}`).innerHTML = '<div class="error-msg">⚠ NO RECORDS FOUND — VERIFY DRUG IDENTIFIER</div>';
+      setStatus('NO RECORDS FOUND', 'ok');
+      return;
+    }
+
+    S[slot].label = labelData.results[0];
+    renderIdentity(slot);
+    setStatus(`LABEL FOUND — FETCHING FAERS AND ENFORCEMENT DATA...`, 'busy');
+
+    // Fetch adverse events and recalls in parallel
+    const [evData, rcData] = await Promise.all([
+      fetchEvents(drug).catch(e => ({ error: e, top10: [], total: 0 })),
+      fetchRecalls(drug).catch(() => null)
+    ]);
+
+    S[slot].events  = evData;
+    S[slot].recalls = rcData;
+
+    renderActiveTab();
+    setStatus(`${drug.toUpperCase()} — RECORDS LOADED`, 'ok');
+
+  } catch(e) {
+    const msg = handleFetchErrorHtml(e);
+    q(`identity-${slot}`).innerHTML = msg;
+    setStatus('FDA API ERROR', 'err');
+  }
+}
+
+// ── ERROR HANDLING ────────────────────────────────────────────────────────
+function handleFetchErrorHtml(e) {
+  if (e.message === 'RATE_LIMIT') return '<div class="error-msg">⚠ QUERY RATE LIMIT REACHED — RETRY IN 30 SECONDS</div>';
+  if (e.message?.includes('fetch') || e.name === 'TypeError') return '<div class="error-msg">⚠ FDA API UNREACHABLE — CHECK NETWORK CONNECTION</div>';
+  return `<div class="error-msg">⚠ FDA API UNREACHABLE — CHECK NETWORK CONNECTION</div>`;
+}
+
+// ── ACCORDION ─────────────────────────────────────────────────────────────
+function toggleAccordion(hdr) {
+  const body = hdr.nextElementSibling;
+  hdr.classList.toggle('open');
+  body.classList.toggle('open');
+}
+
+// ── SHOW MORE / LESS ──────────────────────────────────────────────────────
+function toggleReason(id, btn) {
+  const el = q(id);
+  const expanded = el.classList.toggle('expanded');
+  btn.textContent = expanded ? '[ SHOW LESS ]' : '[ SHOW MORE ]';
+}
+
+// ── HELP MODALS ───────────────────────────────────────────────────────────
+const HELP = {
+  adverse: {
+    title: '⚕ CLINICAL REFERENCE — HOW TO READ ADVERSE EVENT DATA',
+    body: `
+      <h3>WHAT IS FAERS?</h3>
+      <p>The FDA Adverse Event Reporting System (FAERS) is a database of spontaneous adverse event reports submitted by healthcare professionals, consumers, and manufacturers.</p>
+      <h3>IMPORTANT LIMITATIONS</h3>
+      <ul>
+        <li><strong>Voluntary reporting:</strong> Reports are not required in most cases. Events may be dramatically underreported.</li>
+        <li><strong>No causation:</strong> A report does not mean the drug caused the event. Patients often take multiple medications.</li>
+        <li><strong>Popularity bias:</strong> Widely-used drugs naturally accumulate more reports simply because more people take them.</li>
+        <li><strong>Duplicate reports:</strong> The same event may be reported multiple times by different parties.</li>
+      </ul>
+      <h3>HOW TO USE THIS DATA</h3>
+      <p>Use reaction frequencies as a signal for further research, not as a measure of drug danger. A drug with 500,000 reports is not necessarily more dangerous than one with 500.</p>
+      <p><strong>Never adjust medication based on FAERS data alone.</strong></p>`
+  },
+  recalls: {
+    title: '⚕ CLINICAL REFERENCE — UNDERSTANDING RECALL CLASSIFICATIONS',
+    body: `
+      <h3>FDA RECALL CLASSIFICATIONS</h3>
+      <p>The FDA classifies drug recalls into three classes based on the probability and severity of harm to consumers:</p>
+      <h3>CLASS I — CRITICAL</h3>
+      <p><strong>Definition:</strong> There is a reasonable probability that use of a violative product will cause serious adverse health consequences or death.</p>
+      <p><em>Example: A drug contaminated with a toxic substance; a medication with incorrect potency that could cause overdose.</em></p>
+      <h3>CLASS II — WARNING</h3>
+      <p><strong>Definition:</strong> Use of the violative product may cause temporary adverse health consequences, or the probability of serious adverse health consequences is remote.</p>
+      <p><em>Example: Labeling error that could cause medication errors; minor contamination unlikely to cause harm in most cases.</em></p>
+      <h3>CLASS III — NOTICE</h3>
+      <p><strong>Definition:</strong> Use of the violative product is not likely to cause any adverse health consequences.</p>
+      <p><em>Example: Minor labeling issue, packaging defect not affecting product integrity.</em></p>
+      <h3>MARKET WITHDRAWAL</h3>
+      <p>Some actions are "market withdrawals" — the product has a minor violation that doesn't meet recall criteria, but is removed as a precaution.</p>`
+  },
+  interactions: {
+    title: '⚕ CLINICAL REFERENCE — ABOUT DRUG-DRUG INTERACTIONS',
+    body: `
+      <h3>WHAT IS A DRUG INTERACTION?</h3>
+      <p>A drug-drug interaction occurs when one drug alters the effectiveness or safety of another. Mechanisms include competition for the same metabolic enzyme, additive toxicity, or opposing mechanisms of action.</p>
+      <h3>LIMITATIONS OF LABEL INTERACTION SECTIONS</h3>
+      <ul>
+        <li>Labels typically only list <strong>studied</strong> interactions — many real-world interactions are not documented.</li>
+        <li>Clinical significance is often not quantified on the label.</li>
+        <li>New interactions are discovered continuously after approval.</li>
+      </ul>
+      <h3>CLINICALLY IMPORTANT PAIRS (EXAMPLES)</h3>
+      <ul>
+        <li><strong>Warfarin + NSAIDs (e.g., Ibuprofen):</strong> Increased bleeding risk; NSAIDs inhibit platelet function AND may displace warfarin from albumin binding.</li>
+        <li><strong>MAOIs + SSRIs:</strong> Risk of serotonin syndrome — potentially fatal. Washout period required.</li>
+        <li><strong>Statins + CYP3A4 inhibitors:</strong> Elevated statin levels → myopathy or rhabdomyolysis risk.</li>
+        <li><strong>Digoxin + Amiodarone:</strong> Amiodarone increases digoxin levels → toxicity risk.</li>
+      </ul>
+      <p><strong>Always consult a clinical pharmacist or interaction-checking tool for patient-specific decisions.</strong></p>`
+  },
+  class: {
+    title: '⚕ CLINICAL REFERENCE — ABOUT PHARMACOLOGIC DRUG CLASSES',
+    body: `
+      <h3>WHAT IS AN ESTABLISHED PHARMACOLOGIC CLASS (EPC)?</h3>
+      <p>The FDA assigns each drug an EPC — a standardized descriptor reflecting its mechanism of action (e.g., "HMG-CoA Reductase Inhibitor") or pharmacologic effect (e.g., "Beta-Adrenergic Blocker").</p>
+      <h3>WHY COMPARE WITHIN A CLASS?</h3>
+      <ul>
+        <li><strong>Therapeutic substitution:</strong> Drugs within the same class often have similar efficacy but different side effect profiles, making comparisons clinically meaningful.</li>
+        <li><strong>Class effect extrapolation:</strong> Evidence for one drug in a class is sometimes applied to others — with caveats.</li>
+        <li><strong>Drug shortages:</strong> Understanding class alternatives is essential for formulary management during shortages.</li>
+      </ul>
+      <h3>LIMITATIONS</h3>
+      <p>Drugs in the same EPC class are <em>not</em> interchangeable without clinical judgment. Dosing, metabolism, half-life, and individual patient factors all matter.</p>
+      <p>The class profile shown here is based solely on FDA labeling data and does not reflect clinical equivalence.</p>`
+  },
+  system: {
+    title: '⚕ CLINICAL REFERENCE — ABOUT THIS SYSTEM',
+    body: `
+      <h3>MEDRX COMPARATIVE SAFETY SYSTEM</h3>
+      <p>MedRx is an educational web application designed to demonstrate pharmacovigilance concepts using publicly available FDA data. It was built for the AIML 1870 Code Quest.</p>
+      <h3>DATA SOURCES</h3>
+      <ul>
+        <li><strong>Drug Labels:</strong> FDA Structured Product Labeling (SPL) via OpenFDA /drug/label endpoint</li>
+        <li><strong>Adverse Events:</strong> FDA Adverse Event Reporting System (FAERS) via OpenFDA /drug/event endpoint</li>
+        <li><strong>Recalls:</strong> FDA Enforcement Reports via OpenFDA /drug/enforcement endpoint</li>
+      </ul>
+      <h3>OPENFDAATTRIBUTION</h3>
+      <p>This product uses publicly available data from the U.S. Food and Drug Administration (FDA). FDA is not responsible for the product and does not endorse or recommend this or any other product.</p>
+      <h3>DISCLAIMER</h3>
+      <p><strong>This tool is for educational purposes ONLY.</strong> It is not intended for clinical use. Do not make medical, pharmaceutical, or treatment decisions based on data displayed here. Always consult a licensed healthcare provider.</p>
+      <h3>TECHNICAL</h3>
+      <p>Built with vanilla HTML/CSS/JavaScript. No backend. No API key required. All queries go directly to api.fda.gov.</p>`
+  }
+};
+
+function openHelp(type) {
+  const h = HELP[type];
+  if (!h) return;
+  q('help-title').textContent = h.title;
+  q('help-body').innerHTML = h.body;
+  q('help-modal').style.display = 'flex';
+}
+
+function closeHelp() {
+  q('help-modal').style.display = 'none';
+}
+
+function closeHelpBg(e) {
+  if (e.target === q('help-modal')) closeHelp();
+}
+
+// ── ACCESS MODAL ──────────────────────────────────────────────────────────
+function acknowledgeAccess() {
+  q('access-overlay').style.display = 'none';
+  const app = q('app');
+  app.style.display = 'flex';
+  // Load defaults
+  q('search-a').value = 'warfarin';
+  q('search-b').value = 'ibuprofen';
+  queryDrug('a');
+  setTimeout(() => queryDrug('b'), 400); // stagger to avoid rate limiting
+}
+
+// ── AUTOCOMPLETE ──────────────────────────────────────────────────────────
+const acTimers = { a: null, b: null };
+const acIndex  = { a: -1,   b: -1  };
+
+async function fetchSuggestions(query) {
+  const q2 = enc(query);
+  const [genData, brandData] = await Promise.all([
+    fdaGet(`${FDA}/drug/label.json?search=openfda.generic_name:${q2}*&limit=6`).catch(() => null),
+    fdaGet(`${FDA}/drug/label.json?search=openfda.brand_name:${q2}*&limit=6`).catch(() => null)
+  ]);
+
+  const seen = new Set();
+  const results = [];
+
+  // Helper to add a suggestion entry
+  function add(generic, brands, matchedAs) {
+    const key = (generic || brands?.[0] || '').toLowerCase();
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    results.push({ generic: generic || null, brands: brands || [], matchedAs });
+  }
+
+  (genData?.results || []).forEach(r => {
+    const g = getFirst(r.openfda?.generic_name);
+    const b = r.openfda?.brand_name?.slice(0, 2) || [];
+    add(g, b, 'generic');
+  });
+
+  (brandData?.results || []).forEach(r => {
+    const g = getFirst(r.openfda?.generic_name);
+    const b = r.openfda?.brand_name?.slice(0, 2) || [];
+    add(g, b, 'brand');
+  });
+
+  return results.slice(0, 8);
+}
+
+function renderDropdown(slot, items) {
+  const ul = q(`ac-${slot}`);
+  acIndex[slot] = -1;
+
+  if (!items.length) { ul.classList.remove('open'); return; }
+
+  ul.innerHTML = items.map((item, i) => {
+    const name     = item.generic || item.brands[0] || '';
+    const subParts = [];
+    if (item.matchedAs === 'brand' && item.generic) subParts.push(`<span class="ac-tag">GENERIC:</span>${escapeHtml(item.generic)}`);
+    if (item.brands.length)  subParts.push(`<span class="ac-tag ac-tag-brand">BRAND:</span>${escapeHtml(item.brands.join(', '))}`);
+    const sub = subParts.length ? `<div class="ac-item-sub">${subParts.join(' &nbsp;·&nbsp; ')}</div>` : '';
+    const typeTag = item.matchedAs === 'brand'
+      ? `<span class="ac-tag ac-tag-brand">BRAND</span>`
+      : `<span class="ac-tag">GENERIC</span>`;
+    return `<li class="ac-item" data-value="${escapeHtml(name)}" onmousedown="selectSuggestion('${slot}', '${escapeHtml(name).replace(/'/g,"\\'")}')">
+      <div class="ac-item-name">${typeTag}${escapeHtml(name.toUpperCase())}</div>${sub}
+    </li>`;
+  }).join('');
+
+  ul.classList.add('open');
+}
+
+function selectSuggestion(slot, value) {
+  q(`search-${slot}`).value = value;
+  q(`ac-${slot}`).classList.remove('open');
+  acIndex[slot] = -1;
+  queryDrug(slot);
+}
+
+function closeDropdown(slot) {
+  q(`ac-${slot}`).classList.remove('open');
+  acIndex[slot] = -1;
+}
+
+function navigateDropdown(slot, dir) {
+  const ul = q(`ac-${slot}`);
+  const items = ul.querySelectorAll('.ac-item');
+  if (!items.length) return;
+  items[acIndex[slot]]?.classList.remove('ac-selected');
+  acIndex[slot] = Math.max(-1, Math.min(items.length - 1, acIndex[slot] + dir));
+  if (acIndex[slot] >= 0) {
+    items[acIndex[slot]].classList.add('ac-selected');
+    q(`search-${slot}`).value = items[acIndex[slot]].dataset.value;
+  }
+}
+
+function initAutocomplete(slot) {
+  const input = q(`search-${slot}`);
+
+  input.addEventListener('input', () => {
+    clearTimeout(acTimers[slot]);
+    const val = input.value.trim();
+    if (val.length < 2) { closeDropdown(slot); return; }
+    acTimers[slot] = setTimeout(async () => {
+      const items = await fetchSuggestions(val);
+      renderDropdown(slot, items);
+    }, 300);
+  });
+
+  input.addEventListener('keydown', e => {
+    const ul = q(`ac-${slot}`);
+    if (e.key === 'ArrowDown')  { e.preventDefault(); navigateDropdown(slot,  1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); navigateDropdown(slot, -1); }
+    else if (e.key === 'Enter') {
+      if (acIndex[slot] >= 0 && ul.classList.contains('open')) {
+        e.preventDefault();
+        const sel = ul.querySelector('.ac-selected');
+        if (sel) selectSuggestion(slot, sel.dataset.value);
+      } else {
+        closeDropdown(slot);
+        queryDrug(slot);
+      }
+    }
+    else if (e.key === 'Escape') { closeDropdown(slot); }
+  });
+
+  input.addEventListener('blur', () => setTimeout(() => closeDropdown(slot), 150));
+}
+
+// ── KEYBOARD ──────────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeHelp();
+});
+
+// ── INIT ──────────────────────────────────────────────────────────────────
+function init() {
+  // Generate session ID
+  const sid = 'SID-' + Math.random().toString(36).substr(2,6).toUpperCase() + '-' + Date.now().toString(36).toUpperCase().slice(-4);
+  S.sid = sid;
+  q('access-sid').textContent = sid;
+  q('hdr-sid').textContent = sid;
+
+  // Start clock
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  // Init autocomplete for both slots
+  initAutocomplete('a');
+  initAutocomplete('b');
+}
+
+init();
+</script>
+</body>
+</html>
